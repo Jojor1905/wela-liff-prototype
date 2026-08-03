@@ -1,18 +1,24 @@
 # Wela LIFF front-end prototype
 
-Mobile-first Next.js prototype for Wela’s skincare consultation flow. The current integration can submit a selected image and questionnaire answers to the local FastAPI `acne_lesion` analysis endpoint. LINE LIFF is not initialised.
+Mobile-first Next.js prototype for Wela’s skincare consultation flow. The app initialises LINE LIFF in the browser and can submit a selected image and questionnaire answers to the local FastAPI `acne_lesion` analysis endpoint.
 
 ## Local configuration
 
-Create `.env.local` in the project root:
+Copy `.env.local.example` to `.env.local` in the project root, then provide the LIFF ID from the LINE Developers Console:
 
 ```dotenv
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 NEXT_PUBLIC_USE_MOCK_ANALYSIS=false
-NEXT_PUBLIC_LIFF_ID=
+NEXT_PUBLIC_LIFF_ID=your-liff-id
 ```
 
 `NEXT_PUBLIC_` values are embedded by Next.js at build time. Restart the development server after changing them.
+
+The production LIFF endpoint is `https://wela-liff-prototype.vercel.app`. Configure that URL as the LIFF endpoint in the LINE Developers Console and enable only the `profile` scope needed by this prototype. Add `NEXT_PUBLIC_LIFF_ID` to the Vercel project environment before building.
+
+LIFF initialises once when the application starts. Inside the LIFF browser, LINE Login is handled by LIFF and a successful session shows the user’s display name and optional profile image. In localhost and other external browsers, Wela does not force LINE Login: the consultation stays usable in browser preview mode.
+
+The front end retains only `displayName` and `pictureUrl` in React memory. It does not read, store, or log LINE access tokens or ID tokens. No channel secret, Messaging API access token, message permission, `chat_message.write` scope, or Messaging API functionality belongs in this front end.
 
 The front end uses mock analysis only when `NEXT_PUBLIC_USE_MOCK_ANALYSIS=true` or `NEXT_PUBLIC_API_BASE_URL` is empty. A failed configured API request is shown to the user and never falls back silently to mock data.
 
@@ -44,4 +50,5 @@ Integration tests mock the FastAPI response and cover multipart submission, resp
 - The connected model output is limited to the project class `acne_lesion`.
 - Skin type, dark circles, sensitivity, goals, and other concerns remain questionnaire declarations.
 - Results are experimental prototype information, not a diagnosis or professional medical advice.
-- No LINE Login, LIFF SDK, Messaging API, payment, account, or persistent history integration is active.
+- LINE LIFF and its profile scope are active only for lightweight sign-in context. LINE Login authorisation is separate from photo-analysis consent and the optional future LINE follow-up choice.
+- No Messaging API, `chat_message.write`, LINE OA messaging, payment, account, or persistent history integration is active.

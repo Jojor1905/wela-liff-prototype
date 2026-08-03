@@ -47,10 +47,13 @@ For the current prototype:
 
 Offer a separate, optional choice for future follow-up through LINE, such as routine reminders or advisor contact.
 
+LINE Login authorisation is handled by LINE when the app opens in the LIFF browser. It permits Wela to show the signed-in user’s display name and optional profile image only. This identity authorisation is separate from photo-analysis acknowledgement, follow-up consent, and marketing consent.
+
 For the current prototype:
 
-- No LINE OA or LIFF connection is performed.
-- No message is sent and no LINE identity is requested.
+- LIFF retrieves only the signed-in user’s display name and optional profile image.
+- The optional follow-up choice does not control LINE Login and does not grant photo-analysis permission.
+- No message is sent and no Messaging API permission is requested.
 - The interface must state that the choice is illustrative and not active.
 
 ## Optional marketing consent
@@ -80,4 +83,4 @@ The consent screen must provide:
 - Confirmation only after the required acknowledgement is actively selected
 - No dark patterns, repeated prompts, or misleading button hierarchy
 
-If a user cancels, return them to the welcome screen or close the future LIFF view when that integration is explicitly implemented. Browser behaviour must remain safe and predictable in the current prototype.
+If a user cancels, return them to the welcome screen. Cancelling photo analysis does not alter the separate LINE Login session. Browser behaviour must remain safe and predictable.

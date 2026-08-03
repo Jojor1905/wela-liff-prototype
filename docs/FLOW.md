@@ -16,6 +16,8 @@
 
 Introduce Wela as a personalised skincare prototype with a premium, calm tone. Clearly label the experience as simulated. Primary action: start. Secondary action: see how it works.
 
+When opened inside the LIFF browser, initialise LINE Login context and show a subtle profile header only after login and profile retrieval succeed. In an external browser, keep the full prototype usable and label it as browser preview mode. LINE identity remains separate from all photo-analysis and optional follow-up consent.
+
 ### 2. How it works
 
 Explain the short journey: share goals, answer lifestyle questions, review a mock photo preview, and receive a simulated routine. Reinforce privacy and non-diagnostic limitations.

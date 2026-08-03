@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LiffProvider } from "@/src/components/LiffProvider";
 import { bodyFont, displayFont } from "./fonts";
 import "./globals.css";
 
@@ -18,7 +19,9 @@ export default function RootLayout({
       className={`${bodyFont.variable} ${displayFont.variable}`}
       lang="en-GB"
     >
-      <body>{children}</body>
+      <body>
+        <LiffProvider>{children}</LiffProvider>
+      </body>
     </html>
   );
 }

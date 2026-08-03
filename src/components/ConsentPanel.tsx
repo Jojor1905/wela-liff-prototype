@@ -12,7 +12,7 @@ export function ConsentPanel({ requiredAccepted, onRequiredChange, historyAccept
       </label>
       <label className="consent-row">
         <input type="checkbox" checked={lineAccepted} onChange={(event) => onLineChange(event.target.checked)} />
-        <span><strong>Future LINE follow-up</strong><small>Illustrate routine reminders or advisor support. No LINE identity is requested and no message is sent.</small></span>
+        <span><strong>Future LINE follow-up</strong><small>Illustrate routine reminders or advisor support. This choice is separate from signing in with LINE, and no message is sent.</small></span>
       </label>
     </div>
   );

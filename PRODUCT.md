@@ -23,7 +23,7 @@ Wela demonstrates a personalised skincare commerce journey that helps a user mov
 - A mock cart and purchase decision
 - An optional path to product and routine support from an advisor
 
-The current phase validates the mobile-first experience, information hierarchy, consent model, tone, and visual direction. It does not validate clinical accuracy, artificial intelligence, commerce infrastructure, or LINE integration.
+The current phase validates the mobile-first experience, information hierarchy, consent model, tone, visual direction, and lightweight LIFF sign-in context. It does not validate clinical accuracy, artificial intelligence, commerce infrastructure, LINE messaging, or persistent LINE identity storage.
 
 Success means that users can understand the simulated recommendation, why each item is suggested, what is essential or optional, how much time the routine takes, and what they can do next—without mistaking the prototype for a live clinical, AI, or commerce service.
 
@@ -33,9 +33,7 @@ Wela frames personalised skincare commerce as a private premium consultation rat
 
 ## Operating Context
 
-The current product is a mobile-first web application prototype designed to run in a normal mobile browser. Desktop layouts must preserve the focused experience while remaining fully usable.
-
-A future phase is planned to integrate Wela as a LINE LIFF application opened from a LINE Official Account. No LINE OA or LIFF capability is active in the current phase.
+The current product is a mobile-first web application prototype designed to run in the LINE LIFF browser and in normal mobile or desktop browsers. External browsers remain fully usable in preview mode. LIFF provides only the signed-in user’s display name and optional profile image; no LINE OA messaging capability is active.
 
 The documented journey is:
 
@@ -56,6 +54,8 @@ Only the Welcome foundation screen is currently implemented. Later steps remain 
 - A mock cart with no transaction capability
 - Mock advisor actions with no active handoff
 - Responsive behaviour for mobile and desktop browsers
+- Client-only LIFF initialisation with an external-browser preview fallback
+- An in-memory LINE display name and optional profile image after successful login
 
 ### Features requiring explicit approval
 
@@ -66,7 +66,7 @@ Do not implement any of the following without explicit approval:
 - Backend services, user accounts, production databases, or persistent profiles
 - Facial-image upload, cloud storage, processing, analysis, or transmission
 - Real checkout, payment gateways, inventory, fulfilment, or subscriptions
-- LINE Login, LIFF SDK, Messaging API, LINE OA, or related identity and messaging integration
+- Messaging API, LINE OA messaging, `chat_message.write`, or persistent LINE identity storage
 - AI model training, dataset collection, or model-training consent
 - Real automated supplement recommendations based on facial images
 - Production analytics, marketing automation, or advisor operations

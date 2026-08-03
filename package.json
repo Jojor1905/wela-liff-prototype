@@ -10,6 +10,7 @@
     "test:integration": "tsc -p tsconfig.integration.json && node --test .next/integration-tests/tests/analysis-api.test.js"
   },
   "dependencies": {
+    "@line/liff": "^2.29.2",
     "next": "16.2.12",
     "react": "19.2.4",
     "react-dom": "19.2.4"

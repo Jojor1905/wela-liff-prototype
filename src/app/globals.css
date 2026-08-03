@@ -49,6 +49,17 @@ img { display: block; max-width: 100%; }
   box-shadow: var(--shadow-shell);
 }
 
+.liff-status { display: grid; gap: .55rem; margin: -.2rem 0 1rem; }
+.liff-profile { display: flex; min-width: 0; align-items: center; gap: .65rem; padding-bottom: .75rem; border-bottom: 1px solid var(--blush-200); }
+.liff-profile img, .liff-profile__initial { width: 2rem; height: 2rem; flex: 0 0 auto; border-radius: 50%; }
+.liff-profile img { object-fit: cover; }
+.liff-profile__initial { display: grid; place-items: center; background: var(--blush-100); color: var(--burgundy-900); font-size: .75rem; font-weight: 700; }
+.liff-profile > span:last-child { display: grid; min-width: 0; gap: .05rem; }
+.liff-profile small { color: var(--taupe-700); font-size: .64rem; line-height: 1.3; }
+.liff-profile strong { overflow: hidden; color: var(--burgundy-900); font-size: .76rem; font-weight: 650; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.liff-browser-notice, .liff-error { margin: 0; color: var(--taupe-700); font-size: .68rem; line-height: 1.45; }
+.liff-error { color: var(--burgundy-800); }
+
 .step-header { display: grid; grid-template-columns: 2.75rem 1fr 2.75rem; align-items: center; min-height: 2.75rem; }
 .step-header__brand { margin: 0; color: var(--burgundy-900); font-size: 1rem; font-weight: 650; letter-spacing: .12em; text-align: center; }
 .step-header__spacer { width: 2.75rem; }
