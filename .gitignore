@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Codex local files
 .codex/
+
+# Local environment variables
+.env.local

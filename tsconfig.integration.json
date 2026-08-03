@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "incremental": false,
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "outDir": ".next/integration-tests",
+    "rootDir": "."
+  },
+  "include": [
+    "tests/analysis-api.test.ts",
+    "src/models/wela.ts",
+    "src/services/analysis-api.ts"
+  ]
+}

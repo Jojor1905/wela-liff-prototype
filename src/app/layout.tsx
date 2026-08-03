@@ -3,9 +3,9 @@ import { bodyFont, displayFont } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Wela — Personalised Skin Consultation",
+  title: "Wela — Private Skincare Consultation",
   description:
-    "A premium skincare consultation prototype offering personalised routines and product guidance.",
+    "A private skincare consultation prototype with simulated results and product guidance.",
 };
 
 export default function RootLayout({

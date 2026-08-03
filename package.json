@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:integration": "tsc -p tsconfig.integration.json && node --test .next/integration-tests/tests/analysis-api.test.js"
   },
   "dependencies": {
     "next": "16.2.12",
