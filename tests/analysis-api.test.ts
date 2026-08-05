@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AnalysisApiError, createAnalysisApiClient } from "../src/services/analysis-api";
+import { AnalysisApiError, DEFAULT_PREDICTION_TIMEOUT_MS, createAnalysisApiClient, waitForAnalysisReady } from "../src/services/analysis-api";
 import { normaliseGender, type UploadedPhoto, type UserAnswers } from "../src/models/wela";
 
 const answers: UserAnswers = {
@@ -82,6 +82,7 @@ test("submits the expected multipart form and maps a successful API response", a
   assert.equal(await (submittedBody?.get("image") as File).arrayBuffer().then((value) => Buffer.from(value).toString("hex")), "89504e47");
   assert.equal(submittedInit?.cache, "no-store");
   assert.equal(new Headers(submittedInit?.headers).has("content-type"), false);
+  assert.equal(new Headers(submittedInit?.headers).has("x-request-id"), true);
   assert.equal(result.source, "api");
   assert.equal(result.provenance?.inputSha256Prefix, "a1b2c3d4e5f6");
   assert.equal(result.lesionCount, 3);
@@ -153,6 +154,93 @@ test("a real-mode network failure remains an error instead of becoming a mock su
     client.predict({ answers, photo }),
     (error: unknown) => error instanceof AnalysisApiError && error.code === "network",
   );
+});
+
+test("the production prediction timeout is long enough for measured Render inference", () => {
+  assert.equal(DEFAULT_PREDICTION_TIMEOUT_MS, 180_000);
+});
+
+test("a genuine prediction timeout aborts the request and maps only to timeout", async () => {
+  let aborted = false;
+  const fetchMock = (async (_input: string | URL | Request, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () => {
+      aborted = true;
+      reject(new DOMException("timed out", "AbortError"));
+    }, { once: true });
+  })) as typeof fetch;
+  const client = createAnalysisApiClient({ baseUrl: "http://127.0.0.1:8000", fetchImpl: fetchMock, timeoutMs: 5 });
+
+  await assert.rejects(
+    client.predict({ answers, photo, requestId: "timeout-reference" }),
+    (error: unknown) => error instanceof AnalysisApiError && error.code === "timeout" && error.requestId === "timeout-reference",
+  );
+  assert.equal(aborted, true);
+});
+
+test("an external AbortError remains cancellation rather than timeout", async () => {
+  const controller = new AbortController();
+  const fetchMock = (async (_input: string | URL | Request, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () => reject(new DOMException("cancelled", "AbortError")), { once: true });
+  })) as typeof fetch;
+  const client = createAnalysisApiClient({ baseUrl: "http://127.0.0.1:8000", fetchImpl: fetchMock, timeoutMs: 1_000 });
+  const prediction = client.predict({ answers, photo, signal: controller.signal });
+  controller.abort("user left loading screen");
+
+  await assert.rejects(prediction, (error: unknown) => error instanceof AnalysisApiError && error.code === "cancelled");
+});
+
+test("a successful response is not replaced by a stale timeout callback", async () => {
+  let calls = 0;
+  const fetchMock = (async () => {
+    calls += 1;
+    return new Response(JSON.stringify(apiResponse), { status: 200 });
+  }) as typeof fetch;
+  const client = createAnalysisApiClient({ baseUrl: "http://127.0.0.1:8000", fetchImpl: fetchMock, timeoutMs: 5 });
+
+  const result = await client.predict({ answers, photo });
+  await new Promise((resolve) => setTimeout(resolve, 15));
+
+  assert.equal(result.provenance?.requestId, apiResponse.request_id);
+  assert.equal(calls, 1);
+});
+
+test("503 model readiness has a distinct error and POST is never retried", async () => {
+  let calls = 0;
+  const fetchMock = (async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ detail: { code: "model_not_ready" } }), { status: 503, headers: { "X-Request-ID": "backend-reference" } });
+  }) as typeof fetch;
+  const client = createAnalysisApiClient({ baseUrl: "http://127.0.0.1:8000", fetchImpl: fetchMock });
+
+  await assert.rejects(
+    client.predict({ answers, photo }),
+    (error: unknown) => error instanceof AnalysisApiError && error.code === "model-not-ready" && error.requestId === "backend-reference",
+  );
+  assert.equal(calls, 1);
+});
+
+test("health readiness retries bounded model warm-up without submitting prediction", async () => {
+  let healthCalls = 0;
+  let preparingCalls = 0;
+  const fetchMock = (async () => {
+    healthCalls += 1;
+    return healthCalls === 1
+      ? new Response(JSON.stringify({ status: "unavailable", model_loaded: false }), { status: 503 })
+      : new Response(JSON.stringify({ status: "ok", model_loaded: true }), { status: 200, headers: { "X-Request-ID": "ready-reference" } });
+  }) as typeof fetch;
+
+  const requestId = await waitForAnalysisReady({
+    baseUrl: "http://127.0.0.1:8000",
+    fetchImpl: fetchMock,
+    requestId: "frontend-reference",
+    retryDelaysMs: [1],
+    sleepImpl: async () => undefined,
+    onPreparing: () => { preparingCalls += 1; },
+  });
+
+  assert.equal(requestId, "ready-reference");
+  assert.equal(healthCalls, 2);
+  assert.equal(preparingCalls, 1);
 });
 
 test("preserves the backend's no-dominant-region state when no lesions are marked", async () => {

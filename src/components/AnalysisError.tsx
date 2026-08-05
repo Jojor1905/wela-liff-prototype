@@ -13,6 +13,7 @@ export function AnalysisError({ error, onRetry, onChooseAnother }: { error: Anal
         <button className="secondary-action" type="button" onClick={onChooseAnother}>เลือกรูปอื่น</button>
       </div>
       <small>คำตอบและรูปภาพที่เลือกยังคงอยู่ในเบราว์เซอร์นี้เพื่อให้คุณลองอีกครั้ง</small>
+      {error.requestId ? <small className="analysis-error__reference">รหัสอ้างอิง: {error.requestId}</small> : null}
     </section>
   );
 }

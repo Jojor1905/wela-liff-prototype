@@ -5,9 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { mockProducts } from "@/src/data/mock-products";
 import { canContinueFromConsent, flowSteps, historySteps, mainButtonDestinations, previousFlowStep, progressSteps, resolveRestoredStep, type FlowStep } from "@/src/lib/flow-navigation";
 import { decodeBrowserImage, releaseUploadedPhoto, replaceUploadedPhoto, verifyPhotoDecodes } from "@/src/lib/photo-flow";
-import { normaliseGender, type AnalysisErrorState, type AnalysisResult, type Gender, type UploadedPhoto, type UserAnswers } from "@/src/models/wela";
+import { normaliseGender, type AnalysisErrorState, type AnalysisPhase, type AnalysisResult, type Gender, type UploadedPhoto, type UserAnswers } from "@/src/models/wela";
 import { AnalysisApiError, validateImageFile } from "@/src/services/analysis-api";
-import { analysisMode, runAnalysis } from "@/src/services/analysis-service";
+import { analysisMode, runAnalysis, warmAnalysisService } from "@/src/services/analysis-service";
 import { AnalysisError } from "./AnalysisError";
 import { AnalysisLoading } from "./AnalysisLoading";
 import { AnalysisRecommendations } from "./AnalysisRecommendations";
@@ -81,7 +81,7 @@ export function WelaFlow() {
   const [analysisError, setAnalysisError] = useState<AnalysisErrorState | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [questionnaireNotice, setQuestionnaireNotice] = useState<string | null>(null);
-  const [loadingPhase, setLoadingPhase] = useState<"uploading" | "analysing">("uploading");
+  const [loadingPhase, setLoadingPhase] = useState<AnalysisPhase>("connecting");
   const [requiredConsent, setRequiredConsent] = useState(false);
   const [historyConsent, setHistoryConsent] = useState(false);
   const [lineConsent, setLineConsent] = useState(false);
@@ -96,6 +96,13 @@ export function WelaFlow() {
   const detailProduct = useMemo(() => mockProducts.find((product) => product.id === detailId) ?? mockProducts[0], [detailId]);
 
   useEffect(() => () => releaseUploadedPhoto(photoRef.current), []);
+
+  useEffect(() => {
+    if (!photo || analysisMode === "mock") return;
+    const controller = new AbortController();
+    void warmAnalysisService(controller.signal).catch(() => undefined);
+    return () => controller.abort();
+  }, [photo]);
 
   useEffect(() => {
     const storedStep = historyStep(window.history.state);
@@ -138,8 +145,7 @@ export function WelaFlow() {
     if (step !== "loading") return;
     const controller = new AbortController();
     activeRequest.current = controller;
-    const phaseTimer = analysisMode === "api" ? window.setTimeout(() => setLoadingPhase("analysing"), 650) : undefined;
-    runAnalysis({ answers, photo, signal: controller.signal })
+    runAnalysis({ answers, photo, signal: controller.signal, onPhase: setLoadingPhase })
       .then((analysis) => {
         if (!controller.signal.aborted) {
           setResult(analysis);
@@ -157,7 +163,6 @@ export function WelaFlow() {
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
     return () => {
-      if (phaseTimer) window.clearTimeout(phaseTimer);
       controller.abort();
       if (activeRequest.current === controller) activeRequest.current = null;
     };
@@ -170,8 +175,18 @@ export function WelaFlow() {
   }
   function beginAnalysis() {
     setAnalysisError(null);
-    setLoadingPhase(analysisMode === "api" ? "uploading" : "analysing");
+    setLoadingPhase(analysisMode === "api" ? "connecting" : "finalising");
     go(flowSteps.loading);
+  }
+  function chooseAnotherPhoto() {
+    activeRequest.current?.abort();
+    releaseUploadedPhoto(photoRef.current);
+    photoRef.current = null;
+    setPhoto(null);
+    setResult(null);
+    setAnalysisError(null);
+    setPhotoError(null);
+    go(flowSteps.photoSource);
   }
   function back() {
     const previousStep = previousFlowStep(step);
@@ -263,7 +278,7 @@ export function WelaFlow() {
 
   if (step === "analysis-error" && analysisError) return (
     <MobileShell><StepHeader onBack={() => go(photo ? "preview" : "upload")} onExit={reset} label="การวิเคราะห์" />
-      <AnalysisError error={analysisError} onRetry={beginAnalysis} onChooseAnother={() => go("upload")} />
+      <AnalysisError error={analysisError} onRetry={beginAnalysis} onChooseAnother={chooseAnotherPhoto} />
     </MobileShell>
   );
 
@@ -340,7 +355,7 @@ export function WelaFlow() {
         photo={photo}
         onPersonalised={() => { setQuestionnaireNotice(null); go(mainButtonDestinations.photoReview); }}
         onImmediate={() => { setQuestionnaireNotice("การวิเคราะห์เฉพาะบุคคลจำเป็นต้องใช้คำตอบเพิ่มเติมเกี่ยวกับเพศ ช่วงอายุ ลักษณะผิว ความกังวล และเป้าหมายของคุณ"); go(mainButtonDestinations.photoReview); }}
-        onChooseAnother={back}
+        onChooseAnother={chooseAnotherPhoto}
       />
     </MobileShell>
   );
@@ -384,6 +399,8 @@ function analysisErrorState(error: unknown): AnalysisErrorState {
     const titles: Record<AnalysisApiError["code"], string> = {
       "invalid-image": "ไม่สามารถใช้รูปภาพนี้ได้",
       network: "ไม่สามารถเชื่อมต่อบริการภายในได้",
+      waking: "บริการวิเคราะห์ยังตื่นไม่เสร็จ",
+      "model-not-ready": "โมเดลยังไม่พร้อมวิเคราะห์",
       timeout: "การวิเคราะห์ใช้เวลานานเกินไป",
       validation: "ข้อมูลแบบประเมินยังไม่ครบถ้วน",
       server: "การวิเคราะห์ภายในไม่สำเร็จ",
@@ -394,6 +411,8 @@ function analysisErrorState(error: unknown): AnalysisErrorState {
     const messages: Record<AnalysisApiError["code"], string> = {
       "invalid-image": "โปรดเลือกรูปภาพ JPEG, PNG หรือ WEBP ที่ชัดเจนและมีขนาดไม่เกิน 10 MB",
       network: "โปรดตรวจสอบว่าบริการภายในกำลังทำงาน แล้วลองอีกครั้ง",
+      waking: "บริการคลาวด์กำลังเริ่มทำงาน โปรดลองอีกครั้งในอีกสักครู่",
+      "model-not-ready": "บริการเชื่อมต่อได้แล้ว แต่โมเดลยังเตรียมไม่เสร็จ โปรดลองอีกครั้ง",
       timeout: "โปรดลองวิเคราะห์อีกครั้งในอีกสักครู่",
       validation: "โปรดตรวจสอบคำตอบและรูปภาพก่อนลองอีกครั้ง",
       server: "เกิดปัญหาระหว่างการประมวลผล โปรดลองอีกครั้ง",
@@ -401,7 +420,7 @@ function analysisErrorState(error: unknown): AnalysisErrorState {
       configuration: "โปรดตรวจสอบการตั้งค่าบริการก่อนเริ่มการวิเคราะห์",
       cancelled: "คำขอถูกยกเลิกแล้ว คุณสามารถเริ่มใหม่ได้ทุกเมื่อ",
     };
-    return { code: error.code, title: titles[error.code], message: messages[error.code], canRetry: !["invalid-image", "validation", "configuration", "cancelled"].includes(error.code) };
+    return { code: error.code, title: titles[error.code], message: messages[error.code], canRetry: !["invalid-image", "validation", "configuration", "cancelled"].includes(error.code), requestId: error.requestId };
   }
   return { code: "server", title: "การวิเคราะห์ภายในไม่สำเร็จ", message: "เกิดปัญหาที่ไม่คาดคิด โปรดลองอีกครั้ง", canRetry: true };
 }

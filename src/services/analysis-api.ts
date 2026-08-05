@@ -1,6 +1,7 @@
 import {
   normaliseGender,
   type AnalysisErrorCode,
+  type AnalysisPhase,
   type AnalysisProductRecommendation,
   type AnalysisResult,
   type Detection,
@@ -11,17 +12,33 @@ import {
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+export const DEFAULT_PREDICTION_TIMEOUT_MS = 180_000;
+const DEFAULT_READINESS_TIMEOUT_MS = 60_000;
+const DEFAULT_READINESS_RETRY_DELAYS_MS = [1_500, 3_000] as const;
 
 export interface AnalysisRequest {
   photo: UploadedPhoto;
   answers: UserAnswers;
   signal?: AbortSignal;
+  requestId?: string;
+  onPhase?: (phase: AnalysisPhase) => void;
 }
 
 export interface AnalysisApiClientOptions {
   baseUrl: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+}
+
+export interface ReadinessOptions {
+  baseUrl: string;
+  fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+  requestId?: string;
+  timeoutMs?: number;
+  retryDelaysMs?: readonly number[];
+  sleepImpl?: (durationMs: number, signal?: AbortSignal) => Promise<void>;
+  onPreparing?: () => void;
 }
 
 interface ApiBoundingBox {
@@ -72,10 +89,132 @@ export class AnalysisApiError extends Error {
     public readonly code: AnalysisErrorCode,
     message: string,
     public readonly status?: number,
+    public readonly requestId?: string,
   ) {
     super(message);
     this.name = "AnalysisApiError";
   }
+}
+
+function requestReference(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `wela-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function endpointFor(baseUrl: string, path: string): URL {
+  try {
+    const endpoint = new URL(path, `${baseUrl.replace(/\/+$/, "")}/`);
+    if (!new Set(["http:", "https:"]).has(endpoint.protocol)) throw new Error("Unsupported protocol");
+    return endpoint;
+  } catch {
+    throw new AnalysisApiError("configuration", "The analysis service URL is not configured correctly.");
+  }
+}
+
+function sleep(durationMs: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new AnalysisApiError("cancelled", "The analysis request was cancelled."));
+      return;
+    }
+    const finish = () => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    };
+    const timer = setTimeout(finish, durationMs);
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      reject(new AnalysisApiError("cancelled", "The analysis request was cancelled."));
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
+async function fetchWithTimeout({
+  fetchImpl,
+  input,
+  init,
+  timeoutMs,
+  signal,
+}: {
+  fetchImpl: typeof fetch;
+  input: URL;
+  init: RequestInit;
+  timeoutMs: number;
+  signal?: AbortSignal;
+}): Promise<{ response: Response; timedOut: false }> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort("timeout");
+  }, timeoutMs);
+  const abort = () => controller.abort(signal?.reason);
+  signal?.addEventListener("abort", abort, { once: true });
+  try {
+    const response = await fetchImpl(input, { ...init, signal: controller.signal });
+    return { response, timedOut: false };
+  } catch (error) {
+    if (signal?.aborted) throw new AnalysisApiError("cancelled", "The analysis request was cancelled.");
+    if (timedOut) throw new AnalysisApiError("timeout", "The analysis service took too long to respond.");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
+  }
+}
+
+export async function waitForAnalysisReady({
+  baseUrl,
+  fetchImpl = fetch,
+  signal,
+  requestId = requestReference(),
+  timeoutMs = DEFAULT_READINESS_TIMEOUT_MS,
+  retryDelaysMs = DEFAULT_READINESS_RETRY_DELAYS_MS,
+  sleepImpl = sleep,
+  onPreparing,
+}: ReadinessOptions): Promise<string> {
+  const endpoint = endpointFor(baseUrl, "health");
+  let lastError: AnalysisApiError | null = null;
+
+  for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
+    try {
+      const { response } = await fetchWithTimeout({
+        fetchImpl,
+        input: endpoint,
+        init: { cache: "no-store" },
+        timeoutMs,
+        signal,
+      });
+      const responseRequestId = response.headers.get("x-request-id") ?? requestId;
+      if (response.status === 503) {
+        lastError = new AnalysisApiError("model-not-ready", "The analysis model is not ready.", 503, responseRequestId);
+      } else if (!response.ok) {
+        throw new AnalysisApiError("network", "The analysis service health check failed.", response.status, responseRequestId);
+      } else {
+        const payload = await response.json() as { status?: unknown; model_loaded?: unknown };
+        if (payload.status === "ok" && payload.model_loaded === true) return responseRequestId;
+        lastError = new AnalysisApiError("model-not-ready", "The analysis model is not ready.", response.status, responseRequestId);
+      }
+    } catch (error) {
+      if (error instanceof AnalysisApiError && error.code === "cancelled") throw error;
+      if (error instanceof AnalysisApiError && error.code === "timeout") {
+        lastError = new AnalysisApiError("waking", "The analysis service is still waking up.", undefined, requestId);
+      } else if (error instanceof AnalysisApiError) {
+        lastError = error;
+      } else {
+        lastError = new AnalysisApiError("network", "Wela could not reach the analysis service.", undefined, requestId);
+      }
+    }
+
+    if (attempt < retryDelaysMs.length) {
+      onPreparing?.();
+      await sleepImpl(retryDelaysMs[attempt], signal);
+    }
+  }
+
+  throw lastError ?? new AnalysisApiError("network", "Wela could not reach the analysis service.", undefined, requestId);
 }
 
 export function validateImageFile(file: File): void {
@@ -220,62 +359,63 @@ function formDataFor(request: AnalysisRequest): FormData {
   return body;
 }
 
-function messageForStatus(status: number): AnalysisApiError {
+function messageForStatus(status: number, requestId: string): AnalysisApiError {
   if ([400, 413, 415].includes(status)) {
-    return new AnalysisApiError("invalid-image", "The local analysis service could not read this image. Please choose a clear JPEG, PNG, or WEBP image under 10 MB.", status);
+    return new AnalysisApiError("invalid-image", "The analysis service could not read this image. Please choose a clear JPEG, PNG, or WEBP image under 10 MB.", status, requestId);
   }
   if (status === 422) {
-    return new AnalysisApiError("validation", "The analysis request was incomplete. Review your answers and try again.", status);
+    return new AnalysisApiError("validation", "The analysis request was incomplete. Review your answers and try again.", status, requestId);
   }
+  if (status === 503) return new AnalysisApiError("model-not-ready", "The analysis model is not ready.", status, requestId);
   if (status === 429) {
-    return new AnalysisApiError("server", "The local analysis service is busy. Please wait a moment and try again.", status);
+    return new AnalysisApiError("server", "The analysis service is busy. Please wait a moment and try again.", status, requestId);
   }
-  return new AnalysisApiError("server", "The local analysis service could not complete the request. Please try again.", status);
+  return new AnalysisApiError("server", "The analysis service could not complete the prediction. Please try again.", status, requestId);
 }
 
-export function createAnalysisApiClient({ baseUrl, fetchImpl = fetch, timeoutMs = 45_000 }: AnalysisApiClientOptions) {
-  let endpoint: URL;
-  try {
-    endpoint = new URL("predict", `${baseUrl.replace(/\/+$/, "")}/`);
-    if (!new Set(["http:", "https:"]).has(endpoint.protocol)) throw new Error("Unsupported protocol");
-  } catch {
-    throw new AnalysisApiError("configuration", "The analysis service URL is not configured correctly.");
-  }
+export function createAnalysisApiClient({ baseUrl, fetchImpl = fetch, timeoutMs = DEFAULT_PREDICTION_TIMEOUT_MS }: AnalysisApiClientOptions) {
+  const endpoint = endpointFor(baseUrl, "predict");
 
   return {
     async predict(request: AnalysisRequest): Promise<AnalysisResult> {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort("timeout"), timeoutMs);
-      const abort = () => controller.abort(request.signal?.reason);
-      request.signal?.addEventListener("abort", abort, { once: true });
+      const requestId = request.requestId ?? requestReference();
+      request.onPhase?.("uploading");
+      let analysingTimer: ReturnType<typeof setTimeout> | undefined;
       try {
-        const response = await fetchImpl(endpoint, {
-          method: "POST",
-          body: formDataFor(request),
-          cache: "no-store",
-          signal: controller.signal,
+        analysingTimer = setTimeout(() => request.onPhase?.("analysing"), 1_000);
+        const { response } = await fetchWithTimeout({
+          fetchImpl,
+          input: endpoint,
+          init: {
+            method: "POST",
+            body: formDataFor(request),
+            cache: "no-store",
+            headers: { "X-Request-ID": requestId },
+          },
+          timeoutMs,
+          signal: request.signal,
         });
-        if (!response.ok) throw messageForStatus(response.status);
+        const responseRequestId = response.headers.get("x-request-id") ?? requestId;
+        if (!response.ok) throw messageForStatus(response.status, responseRequestId);
+        request.onPhase?.("finalising");
         let payload: unknown;
         try {
           payload = await response.json();
         } catch {
-          throw new AnalysisApiError("invalid-response", "The local analysis service returned an unreadable response. Please try again.");
+          throw new AnalysisApiError("invalid-response", "The analysis service returned an unreadable response. Please try again.", response.status, responseRequestId);
         }
         if (!isPredictResponse(payload)) {
-          throw new AnalysisApiError("invalid-response", "The local analysis service returned an unexpected response. Please try again.");
+          throw new AnalysisApiError("invalid-response", "The analysis service returned an unexpected response. Please try again.", response.status, responseRequestId);
         }
         return mapPredictResponse(payload, request.answers);
       } catch (error) {
-        if (error instanceof AnalysisApiError) throw error;
-        if (controller.signal.aborted) {
-          if (request.signal?.aborted) throw new AnalysisApiError("cancelled", "The analysis request was cancelled.");
-          throw new AnalysisApiError("timeout", "The local analysis service took too long to respond. Please try again.");
+        if (error instanceof AnalysisApiError && error.code === "timeout") {
+          throw new AnalysisApiError("timeout", "The analysis service took too long to respond. Please try again.", undefined, requestId);
         }
-        throw new AnalysisApiError("network", "Wela could not reach the local analysis service. Check that it is running, then try again.");
+        if (error instanceof AnalysisApiError) throw error;
+        throw new AnalysisApiError("network", "Wela could not reach the analysis service. Check your connection, then try again.", undefined, requestId);
       } finally {
-        clearTimeout(timeout);
-        request.signal?.removeEventListener("abort", abort);
+        if (analysingTimer) clearTimeout(analysingTimer);
       }
     },
   };

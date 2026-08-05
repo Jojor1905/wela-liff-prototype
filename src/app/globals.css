@@ -244,6 +244,7 @@ img { display: block; max-width: 100%; }
 .secondary-action { min-height: 3.2rem; padding: .75rem 1rem; border: 1px solid var(--blush-200); border-radius: .75rem; background: var(--cream-100); color: var(--burgundy-800); cursor: pointer; font-size: .8rem; font-weight: 700; }
 .secondary-action:hover { border-color: var(--taupe-300); background: var(--rose-paper); }
 .analysis-error > small { margin-top: 1.25rem; color: var(--taupe-700); font-size: .67rem; line-height: 1.55; }
+.analysis-error > .analysis-error__reference { margin-top: .35rem; overflow-wrap: anywhere; color: var(--burgundy-700); }
 
 .result-hero { position: relative; display: grid; grid-template-columns: 1.2fr .8fr; gap: .8rem; margin-top: 1.5rem; }
 .result-portrait { min-height: 14rem; overflow: hidden; border-radius: 7rem 7rem .75rem .75rem; background: var(--rose-paper); }.result-portrait img { width: 100%; height: 100%; min-height: 14rem; object-fit: cover; }

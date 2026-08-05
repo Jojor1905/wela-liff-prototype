@@ -83,9 +83,18 @@ export interface AnalysisProductRecommendation {
   rationale: string;
 }
 
+export type AnalysisPhase =
+  | "connecting"
+  | "preparing"
+  | "uploading"
+  | "analysing"
+  | "finalising";
+
 export type AnalysisErrorCode =
   | "invalid-image"
   | "network"
+  | "waking"
+  | "model-not-ready"
   | "timeout"
   | "validation"
   | "server"
@@ -98,6 +107,7 @@ export interface AnalysisErrorState {
   title: string;
   message: string;
   canRetry: boolean;
+  requestId?: string;
 }
 
 export interface ProductRecommendation {
