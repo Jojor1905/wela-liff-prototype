@@ -1,4 +1,11 @@
-export type Gender = "woman" | "man" | "non-binary" | "prefer-not-to-say";
+export const genderValues = ["woman", "man", "non-binary"] as const;
+export type Gender = (typeof genderValues)[number];
+
+export function normaliseGender(value: unknown): Gender | undefined {
+  return typeof value === "string" && genderValues.some((gender) => gender === value)
+    ? value as Gender
+    : undefined;
+}
 export type AgeRange = "18–29" | "30–39" | "40–49" | "50+";
 export type SkinType = "balanced" | "dry" | "oily" | "combination" | "unsure";
 export type SkinConcern =
@@ -6,7 +13,13 @@ export type SkinConcern =
   | "sensitivity"
   | "uneven-looking-tone"
   | "dark-circles"
-  | "none";
+  | "none"
+  | "dark-spots"
+  | "wrinkles"
+  | "large-pores"
+  | "dullness"
+  | "melasma-freckles"
+  | "dry-flaking";
 export type SkincareGoal =
   | "calmer-looking-skin"
   | "comfortable-hydration"
@@ -43,6 +56,13 @@ export interface RegionCounts {
 
 export interface AnalysisResult {
   source: "api" | "mock";
+  provenance?: {
+    requestId: string;
+    inputSha256Prefix: string;
+    inferenceExecuted: boolean;
+    rawDetectionCount: number;
+    postThresholdDetectionCount: number;
+  };
   lesionCount: number;
   dominantRegion: keyof RegionCounts | "none";
   confidenceSummary: "Low" | "Moderate" | "High";

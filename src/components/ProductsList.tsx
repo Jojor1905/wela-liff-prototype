@@ -7,7 +7,7 @@ const ProductsList = () => {
       {mockProducts.map((element) => (
         <Fragment key={element.id}>
           <h1>{element.name}</h1>
-          <p>{element.price}</p>
+          <p>฿{element.price.toLocaleString("th-TH")}</p>
         </Fragment>
       ))}
     </>

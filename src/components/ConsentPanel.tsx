@@ -3,16 +3,16 @@ export function ConsentPanel({ requiredAccepted, onRequiredChange, historyAccept
     <div className="consent-list">
       <label className="consent-row consent-row--required">
         <input type="checkbox" checked={requiredAccepted} onChange={(event) => onRequiredChange(event.target.checked)} />
-        <span><strong>Required prototype acknowledgement</strong><small>{analysisMode === "api" ? "I understand that my selected photo will be sent to the configured local analysis service and processed temporarily by the experimental acne_lesion model. Results may be incomplete or inaccurate, are not stored by this front end, are not a medical diagnosis, and do not replace professional advice." : "I understand that Wela is using mock data in this mode and will not upload or analyse my photo. Results are simulated, not a medical diagnosis, and do not replace professional advice."}</small></span>
+        <span><strong>ข้อตกลงที่จำเป็นสำหรับต้นแบบ</strong><small>{analysisMode === "api" ? "ฉันเข้าใจว่ารูปภาพที่เลือกจะถูกส่งไปยังบริการวิเคราะห์ภายในที่กำหนดและประมวลผลชั่วคราวด้วยโมเดลทดลอง acne_lesion ผลลัพธ์อาจไม่ครบถ้วนหรือคลาดเคลื่อน ส่วนหน้าของระบบจะไม่จัดเก็บข้อมูล ผลลัพธ์ไม่ใช่การวินิจฉัยทางการแพทย์และไม่ทดแทนคำแนะนำจากผู้เชี่ยวชาญ" : "ฉันเข้าใจว่า Wela ใช้ข้อมูลจำลองในโหมดนี้ โดยจะไม่อัปโหลดหรือวิเคราะห์รูปภาพ ผลลัพธ์เป็นเพียงการจำลอง ไม่ใช่การวินิจฉัยทางการแพทย์และไม่ทดแทนคำแนะนำจากผู้เชี่ยวชาญ"}</small></span>
       </label>
-      <div className="consent-divider"><span>Optional · not yet active</span></div>
+      <div className="consent-divider"><span>ตัวเลือกเสริม · ยังไม่เปิดใช้งาน</span></div>
       <label className="consent-row">
         <input type="checkbox" checked={historyAccepted} onChange={(event) => onHistoryChange(event.target.checked)} />
-        <span><strong>Future consultation history</strong><small>Illustrate saving my answers and mock recommendations in a future service. Nothing is persisted now.</small></span>
+        <span><strong>ประวัติการปรึกษาในอนาคต</strong><small>แสดงตัวอย่างการบันทึกคำตอบและคำแนะนำจำลองสำหรับบริการในอนาคต ขณะนี้ไม่มีการจัดเก็บข้อมูล</small></span>
       </label>
       <label className="consent-row">
         <input type="checkbox" checked={lineAccepted} onChange={(event) => onLineChange(event.target.checked)} />
-        <span><strong>Future LINE follow-up</strong><small>Illustrate routine reminders or advisor support. This choice is separate from signing in with LINE, and no message is sent.</small></span>
+        <span><strong>การติดตามผ่าน LINE ในอนาคต</strong><small>แสดงตัวอย่างการแจ้งเตือนกิจวัตรหรือการช่วยเหลือจากที่ปรึกษา ตัวเลือกนี้แยกจากการลงชื่อเข้าใช้ LINE และจะไม่มีการส่งข้อความ</small></span>
       </label>
     </div>
   );

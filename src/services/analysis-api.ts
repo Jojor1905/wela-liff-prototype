@@ -1,11 +1,12 @@
-import type {
-  AnalysisErrorCode,
-  AnalysisProductRecommendation,
-  AnalysisResult,
-  Detection,
-  RegionCounts,
-  UploadedPhoto,
-  UserAnswers,
+import {
+  normaliseGender,
+  type AnalysisErrorCode,
+  type AnalysisProductRecommendation,
+  type AnalysisResult,
+  type Detection,
+  type RegionCounts,
+  type UploadedPhoto,
+  type UserAnswers,
 } from "../models/wela";
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -47,6 +48,11 @@ interface ApiRegionCounts {
 }
 
 export interface PredictApiResponse {
+  request_id: string;
+  input_sha256_prefix: string;
+  inference_executed: boolean;
+  raw_detection_count: number;
+  post_threshold_detection_count: number;
   image_width: number;
   image_height: number;
   total_detection_count: number;
@@ -118,15 +124,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isPredictResponse(value: unknown): value is PredictApiResponse {
   if (!isRecord(value) || !isRecord(value.approximate_face_region_counts)) return false;
   const regions = value.approximate_face_region_counts;
+  const detections = value.detections;
   return (
+    typeof value.request_id === "string" &&
+    typeof value.input_sha256_prefix === "string" && /^[a-f0-9]{12}$/.test(value.input_sha256_prefix) &&
+    value.inference_executed === true &&
+    typeof value.raw_detection_count === "number" &&
+    typeof value.post_threshold_detection_count === "number" &&
     typeof value.total_detection_count === "number" &&
+    value.raw_detection_count >= value.post_threshold_detection_count &&
+    value.post_threshold_detection_count === value.total_detection_count &&
     typeof value.mean_detection_confidence === "number" &&
     typeof value.dominant_region === "string" &&
     typeof value.prototype_breakout_level === "string" &&
     typeof value.prototype_skin_score === "number" &&
     Number.isFinite(value.prototype_skin_score) &&
     ["forehead", "left_cheek", "right_cheek", "nose", "chin"].every((key) => typeof regions[key] === "number") &&
-    Array.isArray(value.detections) && value.detections.every((item) => isRecord(item) && typeof item.class_name === "string" && typeof item.confidence === "number" && typeof item.approximate_region === "string") &&
+    Array.isArray(detections) && value.total_detection_count === detections.length && detections.every((item) => isRecord(item) && typeof item.class_name === "string" && typeof item.confidence === "number" && typeof item.approximate_region === "string") &&
     Array.isArray(value.insights) && value.insights.every((item) => typeof item === "string") &&
     Array.isArray(value.product_recommendations) && value.product_recommendations.every((item) => isRecord(item) && typeof item.category === "string" && typeof item.focus === "string" && typeof item.rationale === "string")
   );
@@ -167,6 +181,13 @@ export function mapPredictResponse(response: PredictApiResponse, answers: UserAn
     });
   return {
     source: "api",
+    provenance: {
+      requestId: response.request_id,
+      inputSha256Prefix: response.input_sha256_prefix,
+      inferenceExecuted: response.inference_executed,
+      rawDetectionCount: response.raw_detection_count,
+      postThresholdDetectionCount: response.post_threshold_detection_count,
+    },
     lesionCount: response.total_detection_count,
     dominantRegion: toRegion(response.dominant_region) ?? fallbackDominant,
     confidenceSummary: confidenceSummary(response.mean_detection_confidence),
@@ -184,13 +205,14 @@ export function mapPredictResponse(response: PredictApiResponse, answers: UserAn
 
 function formDataFor(request: AnalysisRequest): FormData {
   const { answers, photo } = request;
-  if (!answers.gender || !answers.ageRange || !answers.skinType || !answers.goals.length) {
+  const gender = normaliseGender(answers.gender);
+  if (!gender || !answers.ageRange || !answers.skinType || !answers.goals.length) {
     throw new AnalysisApiError("validation", "Please complete the consultation questions before submitting your image.");
   }
   validateImageFile(photo.file);
   const body = new FormData();
-  body.append("image", photo.file, photo.file.name);
-  body.append("gender", answers.gender);
+  body.append("image", photo.file);
+  body.append("gender", gender);
   body.append("ageRange", answers.ageRange);
   body.append("skinType", answers.skinType);
   body.append("concerns", answers.concerns.join(","));
@@ -230,6 +252,7 @@ export function createAnalysisApiClient({ baseUrl, fetchImpl = fetch, timeoutMs 
         const response = await fetchImpl(endpoint, {
           method: "POST",
           body: formDataFor(request),
+          cache: "no-store",
           signal: controller.signal,
         });
         if (!response.ok) throw messageForStatus(response.status);

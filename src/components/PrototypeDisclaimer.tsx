@@ -1,6 +1,6 @@
 import { Icon } from "./icons";
 
-const defaultDisclaimer = "Experimental visual analysis for prototype demonstration only. Results may be incomplete or inaccurate and are not a medical diagnosis.";
+const defaultDisclaimer = "การวิเคราะห์ภาพนี้เป็นการทดลองเพื่อสาธิตต้นแบบเท่านั้น ผลลัพธ์อาจไม่ครบถ้วนหรือคลาดเคลื่อน และไม่ใช่การวินิจฉัยทางการแพทย์";
 
 export function PrototypeDisclaimer({ text = defaultDisclaimer }: { text?: string }) {
   return (

@@ -20,7 +20,7 @@ LIFF initialises once when the application starts. Inside the LIFF browser, LINE
 
 The front end retains only `displayName` and `pictureUrl` in React memory. It does not read, store, or log LINE access tokens or ID tokens. No channel secret, Messaging API access token, message permission, `chat_message.write` scope, or Messaging API functionality belongs in this front end.
 
-The front end uses mock analysis only when `NEXT_PUBLIC_USE_MOCK_ANALYSIS=true` or `NEXT_PUBLIC_API_BASE_URL` is empty. A failed configured API request is shown to the user and never falls back silently to mock data.
+The front end uses mock analysis only when `NEXT_PUBLIC_USE_MOCK_ANALYSIS=true`. Any other value, including `false` or an unset value, selects real API mode. Real mode requires `NEXT_PUBLIC_API_BASE_URL`; missing configuration or a failed request is shown to the user and never falls back silently to mock data.
 
 ## Run locally
 

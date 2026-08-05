@@ -21,19 +21,19 @@ export function LiffHeader() {
             </span>
           )}
           <span>
-            <small>Signed in with LINE</small>
+            <small>ลงชื่อเข้าใช้ด้วย LINE</small>
             <strong>{profile.displayName}</strong>
           </span>
         </div>
       ) : null}
       {browserFallback ? (
         <p className="liff-browser-notice">
-          Browser preview mode — LINE profile features are unavailable.
+          โหมดตัวอย่างบนเบราว์เซอร์ — ไม่สามารถใช้ฟีเจอร์โปรไฟล์ LINE ได้
         </p>
       ) : null}
       {error && !browserFallback ? (
         <p className="liff-error" role="status">
-          LINE profile features could not be loaded. You can continue with the consultation.
+          ไม่สามารถโหลดฟีเจอร์โปรไฟล์ LINE ได้ คุณยังสามารถทำแบบประเมินต่อได้
         </p>
       ) : null}
     </aside>

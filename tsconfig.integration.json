@@ -10,8 +10,10 @@
     "rootDir": "."
   },
   "include": [
-    "tests/analysis-api.test.ts",
+    "tests/*.test.ts",
+    "src/lib/photo-flow.ts",
     "src/models/wela.ts",
+    "src/services/analysis-config.ts",
     "src/services/analysis-api.ts"
   ]
 }

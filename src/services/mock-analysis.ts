@@ -14,31 +14,31 @@ const mockResult: AnalysisResult = {
   ],
   regionCounts: { forehead: 1, leftCheek: 2, rightCheek: 3, chin: 1, nose: 0 },
   insights: [
-    "The mock visual output places most visible spots around the right cheek.",
-    "Your selected skin type and wider concerns remain questionnaire-based.",
+    "ผลภาพจำลองพบจุดที่มองเห็นส่วนใหญ่อยู่บริเวณแก้มขวา",
+    "ลักษณะผิวและความกังวลอื่น ๆ มาจากคำตอบในแบบสอบถามของคุณ",
   ],
   questionnaireInsights: [
-    "Your stated skin type and cosmetic concerns guide the product categories in this mock routine.",
-    "No questionnaire answer is treated as a visually detected condition.",
+    "ลักษณะผิวและความกังวลด้านผิวที่คุณระบุช่วยกำหนดหมวดหมู่ผลิตภัณฑ์ในกิจวัตรจำลองนี้",
+    "คำตอบในแบบสอบถามจะไม่ถูกตีความว่าเป็นภาวะที่ตรวจพบจากภาพ",
   ],
   recommendations: [
-    "Keep the routine short and introduce one product at a time.",
-    "Use a gentle cleanse, lightweight serum, moisturiser, and daily sunscreen.",
+    "รักษากิจวัตรให้กระชับและเริ่มใช้ผลิตภัณฑ์ใหม่ทีละรายการ",
+    "ใช้ผลิตภัณฑ์ทำความสะอาดสูตรอ่อนโยน เซรั่มเนื้อบางเบา มอยส์เจอไรเซอร์ และครีมกันแดดทุกวัน",
   ],
   productRecommendations: [
     {
-      category: "cleanser",
-      focus: "gentle daily cleanser",
-      rationale: "Selected from the reported skin type and routine goal.",
+      category: "ผลิตภัณฑ์ทำความสะอาด",
+      focus: "ผลิตภัณฑ์ทำความสะอาดสูตรอ่อนโยนสำหรับทุกวัน",
+      rationale: "คัดเลือกจากลักษณะผิวและเป้าหมายกิจวัตรที่คุณระบุ",
     },
     {
-      category: "sunscreen",
-      focus: "broad-spectrum daily sunscreen",
-      rationale: "A general cosmetic routine category; no treatment claim is made.",
+      category: "ครีมกันแดด",
+      focus: "ครีมกันแดดชนิดครอบคลุมสำหรับทุกวัน",
+      rationale: "เป็นหมวดหมู่ทั่วไปสำหรับกิจวัตรด้านความงาม โดยไม่มีคำกล่าวอ้างด้านการรักษา",
     },
   ],
   disclaimer:
-    "Experimental visual analysis for prototype demonstration only. Results may be incomplete or inaccurate and are not a medical diagnosis.",
+    "การวิเคราะห์ภาพนี้เป็นการทดลองเพื่อสาธิตต้นแบบเท่านั้น ผลลัพธ์อาจไม่ครบถ้วนหรือคลาดเคลื่อน และไม่ใช่การวินิจฉัยทางการแพทย์",
 };
 
 export async function runMockAnalysis(

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:integration": "tsc -p tsconfig.integration.json && node --test .next/integration-tests/tests/analysis-api.test.js"
+    "test:integration": "tsc -p tsconfig.integration.json && node --test .next/integration-tests/tests/*.test.js"
   },
   "dependencies": {
     "@line/liff": "^2.29.2",

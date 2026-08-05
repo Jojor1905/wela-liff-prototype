@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function PhotoPreparationPage() {
+export default function LegacyPhotoRouteRedirect() {
   redirect("/");
 }

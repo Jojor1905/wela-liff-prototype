@@ -5,14 +5,14 @@ export function AnalysisError({ error, onRetry, onChooseAnother }: { error: Anal
   return (
     <section className="analysis-error" aria-live="assertive" aria-labelledby="analysis-error-title">
       <div className="analysis-error__mark" aria-hidden="true"><Icon name={error.code === "invalid-image" ? "image" : "close"} /></div>
-      <p className="screen-kicker">Analysis paused</p>
+      <p className="screen-kicker">หยุดการวิเคราะห์ชั่วคราว</p>
       <h1 id="analysis-error-title">{error.title}</h1>
       <p>{error.message}</p>
       <div className="analysis-error__actions">
-        {error.canRetry ? <button className="primary-action" type="button" onClick={onRetry}>Try analysis again</button> : null}
-        <button className="secondary-action" type="button" onClick={onChooseAnother}>Choose another photo</button>
+        {error.canRetry ? <button className="primary-action" type="button" onClick={onRetry}>ลองวิเคราะห์อีกครั้ง</button> : null}
+        <button className="secondary-action" type="button" onClick={onChooseAnother}>เลือกรูปอื่น</button>
       </div>
-      <small>Your consultation answers and selected photo remain available in this browser for retry.</small>
+      <small>คำตอบและรูปภาพที่เลือกยังคงอยู่ในเบราว์เซอร์นี้เพื่อให้คุณลองอีกครั้ง</small>
     </section>
   );
 }

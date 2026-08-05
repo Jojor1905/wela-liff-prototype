@@ -1,11 +1,11 @@
 import { WelaFlow } from "@/src/components/WelaFlow";
 
 /*
- * THESIS: A discreet consultation journey, not a technology demonstration or diagnostic dashboard.
- * OWN-WORLD: Warm ivory paper, blush portrait fields, burgundy lacquer, fine rules, and editorial type.
- * STORY: Set expectations, make considered choices, keep the photo local, then review a transparent mock routine.
- * FIRST VIEWPORT: A compact masthead frames a tactile consultation portrait, literary promise, and single action.
- * FORM: A reference-led mobile appointment booklet, focused at 390 px and contained on wider screens.
+ * THESIS: A portrait-led threshold into the existing consultation journey.
+ * OWN-WORLD: The supplied transparent portrait on blush, with one burgundy action.
+ * STORY: Recognise the face-scan experience, start, then continue through the established flow.
+ * FIRST VIEWPORT: One centred full-screen portrait and a safe-area-aware bottom action.
+ * FORM: A focused 390 px mobile landing screen contained on wider browsers.
  */
 export default function Home() {
   return <WelaFlow />;

@@ -1,6 +1,6 @@
 import { Icon } from "./icons";
 
-export function BottomActionBar({ label = "Continue", onClick, disabled, secondaryLabel, onSecondary }: { label?: string; onClick: () => void; disabled?: boolean; secondaryLabel?: string; onSecondary?: () => void }) {
+export function BottomActionBar({ label = "ถัดไป", onClick, disabled, secondaryLabel, onSecondary }: { label?: string; onClick: () => void; disabled?: boolean; secondaryLabel?: string; onSecondary?: () => void }) {
   return (
     <div className="bottom-action">
       {secondaryLabel && onSecondary ? <button className="text-action" type="button" onClick={onSecondary}>{secondaryLabel}</button> : null}

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { LiffProvider } from "@/src/components/LiffProvider";
-import { bodyFont, displayFont } from "./fonts";
+import { displayFont } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Wela — Private Skincare Consultation",
+  title: "Wela — แบบประเมินการดูแลผิวส่วนตัว",
   description:
-    "A private skincare consultation prototype with simulated results and product guidance.",
+    "ต้นแบบแบบประเมินการดูแลผิวส่วนตัว พร้อมผลลัพธ์จำลองและคำแนะนำผลิตภัณฑ์",
 };
 
 export default function RootLayout({
@@ -15,10 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      className={`${bodyFont.variable} ${displayFont.variable}`}
-      lang="en-GB"
-    >
+    <html className={displayFont.variable} lang="th">
       <body>
         <LiffProvider>{children}</LiffProvider>
       </body>
