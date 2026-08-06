@@ -12,7 +12,7 @@ export async function warmAnalysisService(signal?: AbortSignal): Promise<void> {
   await waitForAnalysisReady({ baseUrl: apiBaseUrl, signal });
 }
 
-export async function runAnalysis({ answers, photo, signal, onPhase }: { answers: UserAnswers; photo: UploadedPhoto | null; signal?: AbortSignal; onPhase?: (phase: AnalysisPhase) => void }): Promise<AnalysisResult> {
+export async function runAnalysis({ answers, photo, signal, requestId, onPhase }: { answers: UserAnswers; photo: UploadedPhoto | null; signal?: AbortSignal; requestId?: string; onPhase?: (phase: AnalysisPhase) => void }): Promise<AnalysisResult> {
   if (analysisMode === "mock") return runMockAnalysis(answers, signal);
   if (!apiBaseUrl) {
     throw new AnalysisApiError("configuration", "Set NEXT_PUBLIC_API_BASE_URL before using real analysis mode.");
@@ -20,8 +20,8 @@ export async function runAnalysis({ answers, photo, signal, onPhase }: { answers
   if (!photo) {
     throw new AnalysisApiError("invalid-image", "Choose a JPEG, PNG, or WEBP image before starting local analysis.");
   }
-  const requestId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : undefined;
+  const activeRequestId = requestId ?? (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : undefined);
   onPhase?.("connecting");
-  await waitForAnalysisReady({ baseUrl: apiBaseUrl, signal, requestId, onPreparing: () => onPhase?.("preparing") });
-  return createAnalysisApiClient({ baseUrl: apiBaseUrl }).predict({ answers, photo, signal, requestId, onPhase });
+  await waitForAnalysisReady({ baseUrl: apiBaseUrl, signal, requestId: activeRequestId, onPreparing: () => onPhase?.("preparing") });
+  return createAnalysisApiClient({ baseUrl: apiBaseUrl }).predict({ answers, photo, signal, requestId: activeRequestId, onPhase });
 }

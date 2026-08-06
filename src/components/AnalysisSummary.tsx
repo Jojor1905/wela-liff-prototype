@@ -1,4 +1,5 @@
 import type { AnalysisResult, UploadedPhoto } from "@/src/models/wela";
+import type { SkinRecommendationResult } from "@/src/types/skin-rules";
 import { PrototypeDisclaimer } from "./PrototypeDisclaimer";
 
 const regionNames: Record<AnalysisResult["dominantRegion"], string> = {
@@ -10,10 +11,10 @@ const regionNames: Record<AnalysisResult["dominantRegion"], string> = {
   none: "ไม่พบบริเวณเด่น",
 };
 
-const severityLabels: Record<AnalysisResult["severityLevel"], string> = { Low: "เล็กน้อย", Moderate: "ปานกลาง", Elevated: "ค่อนข้างมาก" };
-const confidenceLabels: Record<AnalysisResult["confidenceSummary"], string> = { Low: "ต่ำ", Moderate: "ปานกลาง", High: "สูง" };
+const sourceLabels = { model: "จากโมเดล", questionnaire: "จากแบบสอบถาม", combined: "ข้อมูลร่วม" } as const;
 
-export function AnalysisSummary({ result, photo }: { result: AnalysisResult; photo: UploadedPhoto | null }) {
+export function AnalysisSummary({ result, recommendation, photo }: { result: AnalysisResult; recommendation: SkinRecommendationResult; photo: UploadedPhoto | null }) {
+  const modelFinding = recommendation.visualFindings[0];
   return (
     <>
       <section className="result-hero">
@@ -25,19 +26,21 @@ export function AnalysisSummary({ result, photo }: { result: AnalysisResult; pho
           ) : <div className="portrait-placeholder" aria-label="ภาพบุคคลประกอบสำหรับต้นแบบ"><span /></div>}
         </div>
         <div className="result-score">
-          <span>{result.source === "api" ? "ดัชนีจากการตรวจจับ" : "คะแนนผิวต้นแบบ"}</span><strong>{result.skinScore}</strong><small>{result.source === "api" ? "คำนวณจากผลโมเดลของรูปภาพนี้" : "ตัวชี้วัดจำลองสำหรับการทดลอง"}</small>
+          <span>ความกังวลหลัก</span>
+          <strong className="result-score__condition">{recommendation.primaryCondition?.displayNameTh ?? "ต้องการข้อมูลเพิ่ม"}</strong>
+          <small>{recommendation.primaryCondition ? sourceLabels[recommendation.primaryCondition.source] : "ระบบจะไม่คาดเดาจากข้อมูลที่ไม่เพียงพอ"}</small>
         </div>
       </section>
       <section className="analysis-summary" aria-labelledby="summary-title">
-        <div><p className="screen-kicker">{result.source === "api" ? "ผลจากโมเดล YOLO ทดลองของรูปภาพนี้" : "ผลลัพธ์จำลองของคุณ"}</p><h1 id="summary-title">ภาพรวมผิวที่อ่านง่ายและไม่ตัดสิน</h1></div>
+        <div><p className="screen-kicker">ผลลัพธ์ตามหลักฐาน</p><h1 id="summary-title">ภาพรวมผิวและกิจวัตรที่อธิบายที่มาได้</h1></div>
         <dl className="summary-measures">
-          <div><dt>จุดที่มองเห็น</dt><dd>{result.lesionCount}</dd></div>
-          <div><dt>บริเวณที่พบมากที่สุด</dt><dd>{regionNames[result.dominantRegion]}</dd></div>
-          <div><dt>ระดับสิวที่มองเห็น</dt><dd>{severityLabels[result.severityLevel]}</dd></div>
-          <div><dt>ระดับความเชื่อมั่น</dt><dd>{confidenceLabels[result.confidenceSummary]}</dd></div>
+          <div><dt>จุด acne_lesion จากโมเดล</dt><dd>{result.source === "api" ? result.lesionCount : "ไม่มีผลโมเดล"}</dd></div>
+          <div><dt>บริเวณเด่นจากโมเดล</dt><dd>{result.source === "api" ? regionNames[result.dominantRegion] : "ไม่มีผลโมเดล"}</dd></div>
+          <div><dt>ความกังวลรอง</dt><dd>{recommendation.secondaryConditions.map((condition) => condition.displayNameTh).join(" · ") || "ไม่มี"}</dd></div>
+          <div><dt>ที่มาของผลภาพ</dt><dd>{modelFinding ? sourceLabels[modelFinding.source] : "ไม่พบหลักฐานจากภาพ"}</dd></div>
         </dl>
       </section>
-      <PrototypeDisclaimer text={result.disclaimer} />
+      <PrototypeDisclaimer text={recommendation.disclaimer} />
     </>
   );
 }

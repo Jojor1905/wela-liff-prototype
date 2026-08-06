@@ -9,9 +9,17 @@ const regions: { key: keyof AnalysisResult["regionCounts"]; label: string }[] = 
 ];
 
 export function SkinRegionSummary({ result }: { result: AnalysisResult }) {
+  if (result.source !== "api") {
+    return (
+      <section className="region-summary" aria-labelledby="region-title">
+        <div className="section-heading"><span>หลักฐานจากภาพ</span><h2 id="region-title">ไม่มีผลตรวจจับจากโมเดลในโหมดจำลอง</h2></div>
+        <p className="questionnaire-note">ตัวเลขจากข้อมูลจำลองจะไม่ถูกนำมาแสดงเป็นผลตรวจจับจริง</p>
+      </section>
+    );
+  }
   return (
     <section className="region-summary" aria-labelledby="region-title">
-      <div className="section-heading"><span>{result.source === "api" ? "ผล acne_lesion จากโมเดลทดลอง" : "ผล acne_lesion แบบจำลอง"}</span><h2 id="region-title">การกระจายของจุดที่มองเห็น</h2></div>
+      <div className="section-heading"><span>หลักฐานจากโมเดล · acne_lesion เท่านั้น</span><h2 id="region-title">การกระจายของจุดที่โมเดลทำเครื่องหมาย</h2></div>
       <div className="region-bars">
         {regions.map(({ key, label }) => (
           <div className="region-bar" key={key}>
@@ -20,7 +28,7 @@ export function SkinRegionSummary({ result }: { result: AnalysisResult }) {
           </div>
         ))}
       </div>
-      <p className="questionnaire-note"><strong>บริบทจากแบบสอบถาม</strong> ลักษณะผิว ความกังวล และเป้าหมายของคุณมาจากคำตอบที่เลือกเท่านั้น ไม่ได้อนุมานจากการวิเคราะห์ภาพ</p>
+      <p className="questionnaire-note"><strong>ขอบเขตของโมเดล</strong> โมเดลไม่ได้ระบุความมัน ความแห้ง ภาวะขาดน้ำ ความไวต่อการระคายเคือง เม็ดสี หรือริ้วรอย</p>
     </section>
   );
 }

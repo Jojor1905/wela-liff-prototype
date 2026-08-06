@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { mockProducts } from "@/src/data/mock-products";
 import { canContinueFromConsent, flowSteps, historySteps, mainButtonDestinations, previousFlowStep, progressSteps, resolveRestoredStep, type FlowStep } from "@/src/lib/flow-navigation";
 import { decodeBrowserImage, releaseUploadedPhoto, replaceUploadedPhoto, verifyPhotoDecodes } from "@/src/lib/photo-flow";
 import { normaliseGender, type AnalysisErrorState, type AnalysisPhase, type AnalysisResult, type Gender, type UploadedPhoto, type UserAnswers } from "@/src/models/wela";
+import { buildSkinRecommendation } from "@/src/rules/skin-rule-engine";
 import { AnalysisApiError, validateImageFile } from "@/src/services/analysis-api";
 import { analysisMode, runAnalysis, warmAnalysisService } from "@/src/services/analysis-service";
+import type { SkinRecommendationResult } from "@/src/types/skin-rules";
 import { AnalysisError } from "./AnalysisError";
 import { AnalysisLoading } from "./AnalysisLoading";
 import { AnalysisRecommendations } from "./AnalysisRecommendations";
@@ -47,6 +48,11 @@ function writeHistoryStep(step: FlowStep, mode: "push" | "replace") {
   else window.history.replaceState(nextState, "", window.location.href);
 }
 
+function newRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `wela-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 const ageRangeOptions = [
   { value: "18–29", label: "18 - 24 ปี", imageSrc: "/images/questionnaire/age/age-18-24.png", imageAlt: "ช่วงอายุ 18 ถึง 24 ปี" },
   { value: "30–39", label: "25 - 34 ปี", imageSrc: "/images/questionnaire/age/age-25-34.png", imageAlt: "ช่วงอายุ 25 ถึง 34 ปี" },
@@ -78,6 +84,7 @@ export function WelaFlow() {
   const [answers, setAnswers] = useState<UserAnswers>(initialAnswers);
   const [photo, setPhoto] = useState<UploadedPhoto | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [recommendation, setRecommendation] = useState<SkinRecommendationResult | null>(null);
   const [analysisError, setAnalysisError] = useState<AnalysisErrorState | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [questionnaireNotice, setQuestionnaireNotice] = useState<string | null>(null);
@@ -85,15 +92,16 @@ export function WelaFlow() {
   const [requiredConsent, setRequiredConsent] = useState(false);
   const [historyConsent, setHistoryConsent] = useState(false);
   const [lineConsent, setLineConsent] = useState(false);
-  const [selectedProducts, setSelectedProducts] = useState<string[]>(["quiet-cleanse", "daily-veil"]);
-  const [detailId, setDetailId] = useState<string>(mockProducts[0].id);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [detailId, setDetailId] = useState<string>("");
   const activeRequest = useRef<AbortController | null>(null);
+  const activeRequestId = useRef<string | null>(null);
   const photoRef = useRef<UploadedPhoto | null>(null);
   const requiredConsentRef = useRef(false);
 
   const progressIndex = Math.max(1, progressSteps.indexOf(step) + 1);
   const selectedGender = normaliseGender(answers.gender);
-  const detailProduct = useMemo(() => mockProducts.find((product) => product.id === detailId) ?? mockProducts[0], [detailId]);
+  const detailProduct = useMemo(() => recommendation?.products.find((product) => product.id === detailId) ?? recommendation?.products[0] ?? null, [detailId, recommendation]);
 
   useEffect(() => () => releaseUploadedPhoto(photoRef.current), []);
 
@@ -144,11 +152,20 @@ export function WelaFlow() {
   useEffect(() => {
     if (step !== "loading") return;
     const controller = new AbortController();
+    const requestId = activeRequestId.current ?? newRequestId();
+    activeRequestId.current = requestId;
     activeRequest.current = controller;
-    runAnalysis({ answers, photo, signal: controller.signal, onPhase: setLoadingPhase })
+    runAnalysis({ answers, photo, signal: controller.signal, requestId, onPhase: setLoadingPhase })
       .then((analysis) => {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && activeRequestId.current === requestId) {
+          if (analysis.source === "api" && analysis.provenance?.requestId !== requestId) {
+            throw new AnalysisApiError("invalid-response", "The prediction response did not match the active image request.", undefined, requestId);
+          }
+          const nextRecommendation = buildSkinRecommendation({ prediction: analysis, questionnaire: answers, selectedImageRequestId: requestId });
           setResult(analysis);
+          setRecommendation(nextRecommendation);
+          setSelectedProducts([]);
+          setDetailId(nextRecommendation.products[0]?.id ?? "");
           writeHistoryStep("result", "replace");
           setStep("result");
           window.scrollTo({ top: 0, behavior: "smooth" });
@@ -175,15 +192,20 @@ export function WelaFlow() {
   }
   function beginAnalysis() {
     setAnalysisError(null);
+    activeRequestId.current = newRequestId();
     setLoadingPhase(analysisMode === "api" ? "connecting" : "finalising");
     go(flowSteps.loading);
   }
   function chooseAnotherPhoto() {
     activeRequest.current?.abort();
+    activeRequestId.current = null;
     releaseUploadedPhoto(photoRef.current);
     photoRef.current = null;
     setPhoto(null);
     setResult(null);
+    setRecommendation(null);
+    setSelectedProducts([]);
+    setDetailId("");
     setAnalysisError(null);
     setPhotoError(null);
     go(flowSteps.photoSource);
@@ -201,9 +223,10 @@ export function WelaFlow() {
   }
   function reset() {
     activeRequest.current?.abort();
+    activeRequestId.current = null;
     writeHistoryStep(flowSteps.consent, "replace");
     requiredConsentRef.current = false;
-    setStep(flowSteps.consent); setAnswers(initialAnswers); setResult(null); setAnalysisError(null); setPhotoError(null); setQuestionnaireNotice(null); setRequiredConsent(false); setHistoryConsent(false); setLineConsent(false);
+    setStep(flowSteps.consent); setAnswers(initialAnswers); setResult(null); setRecommendation(null); setAnalysisError(null); setPhotoError(null); setQuestionnaireNotice(null); setRequiredConsent(false); setHistoryConsent(false); setLineConsent(false); setSelectedProducts([]); setDetailId("");
     releaseUploadedPhoto(photoRef.current); photoRef.current = null; setPhoto(null);
   }
   function setSingle<K extends keyof UserAnswers>(key: K, value: UserAnswers[K]) { setAnswers((current) => ({ ...current, [key]: value })); }
@@ -221,13 +244,28 @@ export function WelaFlow() {
       setPhotoError(error instanceof AnalysisApiError ? "โปรดเลือกรูปภาพ JPEG, PNG หรือ WEBP ที่มีขนาดไม่เกิน 10 MB" : "ไม่สามารถอ่านรูปภาพนี้ได้ โปรดเลือกรูปภาพ JPEG, PNG หรือ WEBP อื่น");
       return;
     }
+    activeRequest.current?.abort();
+    activeRequestId.current = null;
+    setResult(null);
+    setRecommendation(null);
+    setSelectedProducts([]);
+    setDetailId("");
     setPhotoError(null);
     const nextPhoto = replaceUploadedPhoto(photoRef.current, file, source);
     photoRef.current = nextPhoto;
     setPhoto(nextPhoto);
     go(flowSteps.photoReview);
   }
-  function toggleProduct(id: string) { setSelectedProducts((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]); }
+  function toggleProduct(id: string) {
+    const products = recommendation?.products;
+    const product = products?.find((item) => item.id === id);
+    if (!products || !product) return;
+    setSelectedProducts((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      const otherAlternatives = new Set(products.filter((item) => item.alternativeGroup === product.alternativeGroup).map((item) => item.id));
+      return [...current.filter((item) => !otherAlternatives.has(item)), id];
+    });
+  }
 
   if (step === "welcome") return (
     <MobileShell className="home-landing-screen">
@@ -360,32 +398,37 @@ export function WelaFlow() {
     </MobileShell>
   );
 
-  if (step === "result" && result) return (
-    <MobileShell>{header}<AnalysisSummary result={result} photo={photo} /><SkinRegionSummary result={result} />
-      <section className="insight-section"><h2>ข้อสังเกตจากภาพแบบจำกัด</h2>{result.insights.map((insight) => <p key={insight}>{insight}</p>)}</section>
-      <section className="insight-section insight-section--questionnaire"><h2>ข้อมูลที่คุณระบุ</h2>{result.questionnaireInsights.map((insight) => <p key={insight}>{insight}</p>)}</section>
-      <AnalysisRecommendations result={result} />
-      <BottomActionBar label="ดูผลิตภัณฑ์ที่แนะนำ" onClick={() => go("products")} />
+  if (step === "result" && result && recommendation) return (
+    <MobileShell>{header}<AnalysisSummary result={result} recommendation={recommendation} photo={photo} /><SkinRegionSummary result={result} />
+      <AnalysisRecommendations recommendation={recommendation} />
+      <BottomActionBar label={recommendation.products.length ? "ดูทางเลือกผลิตภัณฑ์" : "กลับไปตอบคำถาม"} onClick={() => recommendation.products.length ? go("products") : go("skin-type")} />
     </MobileShell>
   );
 
-  if (step === "products") return (
-    <MobileShell>{header}<ProductSection selectedIds={selectedProducts} onToggle={toggleProduct} onDetails={(id) => { setDetailId(id); go("product-detail"); }} />
-      <div className="routine-summary"><span>เลือกผลิตภัณฑ์จำลอง {selectedProducts.length} รายการ</span><strong>฿{mockProducts.filter((product) => selectedProducts.includes(product.id)).reduce((sum, product) => sum + product.price, 0).toLocaleString("th-TH")}</strong></div>
-      <PrototypeDisclaimer /><BottomActionBar label="ดูผลิตภัณฑ์ที่เลือก" onClick={() => { setDetailId(selectedProducts[0] ?? mockProducts[0].id); go("product-detail"); }} secondaryLabel="เริ่มใหม่" onSecondary={reset} />
+  if (step === "products" && recommendation) return (
+    <MobileShell>{header}<ProductSection products={recommendation.products} selectedIds={selectedProducts} onToggle={toggleProduct} onDetails={(id) => { setDetailId(id); go("product-detail"); }} />
+      <div className="routine-summary"><span>เลือกเป็นทางเลือกแล้ว {selectedProducts.length} รายการ</span><strong>ไม่ใช่รายการสั่งซื้อ</strong></div>
+      <PrototypeDisclaimer text={recommendation.disclaimer} /><BottomActionBar label="ดูรายละเอียดผลิตภัณฑ์" onClick={() => { setDetailId(selectedProducts[0] ?? recommendation.products[0]?.id ?? ""); go("product-detail"); }} disabled={!recommendation.products.length} secondaryLabel="เริ่มใหม่" onSecondary={reset} />
+    </MobileShell>
+  );
+
+  if (step === "product-detail" && recommendation && detailProduct) return (
+    <MobileShell>{<StepHeader onBack={() => go("products")} onExit={reset} label="รายละเอียดผลิตภัณฑ์" />}
+      <section className="product-detail">
+        <div className="detail-pack product-pack--ivory"><span>WELA</span><i /></div>
+        <p className="screen-kicker">{detailProduct.optional ? "ทางเลือก" : "ตัวเลือกหลัก"} · จากเอกสารกฎ</p><h1>{detailProduct.name}</h1><p className="detail-category">{detailProduct.category} · {detailProduct.displayNameTh}</p><p>{detailProduct.reason}</p>
+        <dl><div><dt>ที่มาของคำแนะนำ</dt><dd>แบบสอบถาม</dd></div><div><dt>หน้าอ้างอิง</dt><dd>{detailProduct.sourcePages.join(", ")}</dd></div></dl>
+        <div className="detail-rationale"><h2>เหตุผลที่แนะนำ</h2><p>{detailProduct.reason}</p>{detailProduct.patchTestRecommended ? <p>ผิวแพ้ง่ายควรทดสอบผลิตภัณฑ์นี้ในบริเวณเล็ก ๆ ก่อนใช้</p> : null}</div>
+        <button className={`detail-select ${selectedProducts.includes(detailProduct.id) ? "is-selected" : ""}`} type="button" onClick={() => toggleProduct(detailProduct.id)}>{selectedProducts.includes(detailProduct.id) ? <><Icon name="check" /> เลือกเป็นทางเลือกแล้ว</> : "เลือกผลิตภัณฑ์นี้"}</button>
+        <PrototypeDisclaimer text={recommendation.disclaimer} />
+      </section><BottomActionBar label="กลับไปยังคำแนะนำ" onClick={() => go("products")} secondaryLabel="จบการทดลองใช้" onSecondary={reset} />
     </MobileShell>
   );
 
   return (
-    <MobileShell>{<StepHeader onBack={() => go("products")} onExit={reset} label="รายละเอียดผลิตภัณฑ์" />}
-      <section className="product-detail">
-        <div className={`detail-pack product-pack--${detailProduct.tone}`}><span>WELA</span><i /></div>
-        <p className="screen-kicker">{detailProduct.priority === "Essential" ? "จำเป็น" : "ทางเลือก"} · ผลิตภัณฑ์จำลอง</p><h1>{detailProduct.name}</h1><p className="detail-category">{detailProduct.category}</p><p>{detailProduct.role}</p>
-        <dl><div><dt>ลำดับในกิจวัตร</dt><dd>{detailProduct.usage}</dd></div><div><dt>ราคาสำหรับการสาธิต</dt><dd>฿{detailProduct.price.toLocaleString("th-TH")}</dd></div></dl>
-        <div className="detail-rationale"><h2>เหตุผลที่แนะนำ</h2><p>คำแนะนำต้นแบบนี้อ้างอิงจากคำตอบในแบบสอบถามและผลสรุปสิวที่มองเห็นแบบจำลอง ไม่ใช่การรักษาหรือวินิจฉัยภาวะผิว</p></div>
-        <button className={`detail-select ${selectedProducts.includes(detailProduct.id) ? "is-selected" : ""}`} type="button" onClick={() => toggleProduct(detailProduct.id)}>{selectedProducts.includes(detailProduct.id) ? <><Icon name="check" /> รวมอยู่ในกิจวัตรจำลอง</> : "เพิ่มในกิจวัตรจำลอง"}</button>
-        <PrototypeDisclaimer />
-      </section><BottomActionBar label="กลับไปยังคำแนะนำ" onClick={() => go("products")} secondaryLabel="จบการทดลองใช้" onSecondary={reset} />
+    <MobileShell>{<StepHeader onBack={() => go(result ? "result" : "goals")} onExit={reset} label="คำแนะนำ" />}
+      <section className="analysis-empty"><p className="screen-kicker">ไม่พบผลลัพธ์ที่ใช้งานได้</p><h1>โปรดลองวิเคราะห์รูปภาพอีกครั้ง</h1><p>ระบบจะไม่แสดงคำแนะนำเดิมเมื่อผลลัพธ์ไม่ตรงกับรูปภาพหรือคำขอปัจจุบัน</p></section>
+      <BottomActionBar label="กลับไปวิเคราะห์" onClick={() => go(photo ? "goals" : "upload")} />
     </MobileShell>
   );
 }
