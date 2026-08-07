@@ -344,7 +344,7 @@ export function WelaFlow() {
     <MobileShell className="photo-source-shell">{header}<QuestionHeading kicker="เลือกรูปภาพ" title="เลือกรูปภาพที่คุณต้องการใช้ในการวิเคราะห์" body={analysisMode === "api" ? "เบราว์เซอร์จะแสดงตัวอย่างก่อน และจะส่งไปยังบริการภายในที่กำหนดเมื่อคุณยืนยันเท่านั้น" : "โหมดจำลองจะเก็บรูปที่เลือกไว้ในหน่วยความจำของเบราว์เซอร์สำหรับเซสชันนี้"} />
       <div className="upload-stage">
         <div className="upload-stage__illustration" aria-hidden="true">
-          <Image className="upload-stage__image" src="/images/backgrounds/input-bg.svg" alt="" width={336} height={288} sizes="(max-width: 480px) 76vw, 15rem" />
+          <Image className="upload-stage__image" src="/images/backgrounds/input-bg.svg" alt="" width={336} height={288} sizes="(max-width: 480px) calc(100vw - 2.5rem), 21rem" />
         </div>
       </div>
       {(step === "preview" && !photo) || photoError ? <div className="inline-image-error" role="alert"><Icon name="image" /><div><strong>โปรดเลือกรูปภาพอีกครั้ง</strong><p>{photoError ?? missingPhotoMessage}</p></div></div> : null}
