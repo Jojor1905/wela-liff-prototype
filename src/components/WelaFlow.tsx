@@ -82,9 +82,8 @@ export function WelaFlow() {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [questionnaireNotice, setQuestionnaireNotice] = useState<string | null>(null);
   const [loadingPhase, setLoadingPhase] = useState<AnalysisPhase>("connecting");
-  const [requiredConsent, setRequiredConsent] = useState(false);
-  const [historyConsent, setHistoryConsent] = useState(false);
-  const [lineConsent, setLineConsent] = useState(false);
+  const [imageConsentAccepted, setImageConsentAccepted] = useState(false);
+  const [policyAccepted, setPolicyAccepted] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<string[]>(["quiet-cleanse", "daily-veil"]);
   const [detailId, setDetailId] = useState<string>(mockProducts[0].id);
   const activeRequest = useRef<AbortController | null>(null);
@@ -94,6 +93,7 @@ export function WelaFlow() {
   const progressIndex = Math.max(1, progressSteps.indexOf(step) + 1);
   const selectedGender = normaliseGender(answers.gender);
   const detailProduct = useMemo(() => mockProducts.find((product) => product.id === detailId) ?? mockProducts[0], [detailId]);
+  const consentAccepted = canContinueFromConsent(imageConsentAccepted, policyAccepted);
 
   useEffect(() => () => releaseUploadedPhoto(photoRef.current), []);
 
@@ -203,7 +203,7 @@ export function WelaFlow() {
     activeRequest.current?.abort();
     writeHistoryStep(flowSteps.consent, "replace");
     requiredConsentRef.current = false;
-    setStep(flowSteps.consent); setAnswers(initialAnswers); setResult(null); setAnalysisError(null); setPhotoError(null); setQuestionnaireNotice(null); setRequiredConsent(false); setHistoryConsent(false); setLineConsent(false);
+    setStep(flowSteps.consent); setAnswers(initialAnswers); setResult(null); setAnalysisError(null); setPhotoError(null); setQuestionnaireNotice(null); setImageConsentAccepted(false); setPolicyAccepted(false);
     releaseUploadedPhoto(photoRef.current); photoRef.current = null; setPhoto(null);
   }
   function setSingle<K extends keyof UserAnswers>(key: K, value: UserAnswers[K]) { setAnswers((current) => ({ ...current, [key]: value })); }
@@ -334,9 +334,26 @@ export function WelaFlow() {
   );
 
   if (step === "consent") return (
-    <MobileShell><StepHeader onExit={reset} /><QuestionHeading kicker="ความเป็นส่วนตัวของคุณ" title="คุณเป็นผู้ควบคุมข้อมูลของคุณ" body="โปรดยอมรับข้อจำกัดที่จำเป็นของต้นแบบ ตัวเลือกเสริมไม่มีผลต่อการเข้าใช้งาน" />
-      <ConsentPanel requiredAccepted={requiredConsent} onRequiredChange={(accepted) => { requiredConsentRef.current = accepted; setRequiredConsent(accepted); }} historyAccepted={historyConsent} onHistoryChange={setHistoryConsent} lineAccepted={lineConsent} onLineChange={setLineConsent} analysisMode={analysisMode} />
-      <BottomActionBar label="เริ่มการวิเคราะห์" onClick={() => { if (canContinueFromConsent(requiredConsent)) go(mainButtonDestinations.consent); }} disabled={!canContinueFromConsent(requiredConsent)} secondaryLabel="ยกเลิกการปรึกษา" onSecondary={reset} />
+    <MobileShell className="consent-screen">
+      <StepHeader onExit={reset} />
+      <section className="consent-hero" aria-labelledby="consent-title">
+        <p className="screen-kicker">ความเป็นส่วนตัวของคุณ</p>
+        <h1 id="consent-title"><span>เราจะดูแลข้อมูลของคุณ</span><span>อย่างปลอดภัย</span></h1>
+        <p>เพื่อความแม่นยำในการวิเคราะห์ Wela จะใช้รูปใบหน้าของคุณ เฉพาะขั้นตอนนี้เท่านั้น โดยไม่มีการนำไปใช้อย่างอื่น และจัดการข้อมูลอย่างรัดกุมตามนโยบายของเรา</p>
+      </section>
+      <ConsentPanel
+        imageConsentAccepted={imageConsentAccepted}
+        onImageConsentChange={(accepted) => {
+          requiredConsentRef.current = canContinueFromConsent(accepted, policyAccepted);
+          setImageConsentAccepted(accepted);
+        }}
+        policyAccepted={policyAccepted}
+        onPolicyChange={(accepted) => {
+          requiredConsentRef.current = canContinueFromConsent(imageConsentAccepted, accepted);
+          setPolicyAccepted(accepted);
+        }}
+      />
+      <BottomActionBar label="ฉันยินยอม" onClick={() => { if (consentAccepted) go(mainButtonDestinations.consent); }} disabled={!consentAccepted} showIcon={false} />
     </MobileShell>
   );
 

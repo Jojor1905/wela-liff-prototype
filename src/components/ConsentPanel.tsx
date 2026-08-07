@@ -1,19 +1,69 @@
-export function ConsentPanel({ requiredAccepted, onRequiredChange, historyAccepted, onHistoryChange, lineAccepted, onLineChange, analysisMode }: { requiredAccepted: boolean; onRequiredChange: (value: boolean) => void; historyAccepted: boolean; onHistoryChange: (value: boolean) => void; lineAccepted: boolean; onLineChange: (value: boolean) => void; analysisMode: "api" | "mock" }) {
+import Image from "next/image";
+
+const privacyBenefits = [
+  {
+    title: "ใช้รูปภาพเพื่อวิเคราะห์สภาพผิวเท่านั้น",
+    description: "ไม่ใช้เพื่อวัตถุประสงค์อื่นนอกเหนือจากการวิเคราะห์ผิว",
+    iconSrc: "/images/icon/face-icon.svg",
+  },
+  {
+    title: "ไม่เผยแพร่หรือแบ่งปันให้บุคคลภายนอก",
+    description: "จัดเก็บข้อมูลของคุณด้วยระบบที่เชื่อถือได้",
+    iconSrc: "/images/icon/lock-icon.svg",
+  },
+  {
+    title: "เก็บรักษาข้อมูลอย่างปลอดภัย",
+    description: "ด้วยระบบที่ได้มาตรฐานและเชื่อถือได้",
+    iconSrc: "/images/icon/security-icon.svg",
+  },
+  {
+    title: "ลบรูปภาพเมื่อสิ้นสุดการวิเคราะห์",
+    description: "จัดเก็บข้อมูลของคุณด้วยระบบที่เชื่อถือได้",
+    iconSrc: "/images/icon/delete-icon.svg",
+  },
+] as const;
+
+type ConsentPanelProps = {
+  imageConsentAccepted: boolean;
+  onImageConsentChange: (value: boolean) => void;
+  policyAccepted: boolean;
+  onPolicyChange: (value: boolean) => void;
+};
+
+export function ConsentPanel({
+  imageConsentAccepted,
+  onImageConsentChange,
+  policyAccepted,
+  onPolicyChange,
+}: ConsentPanelProps) {
   return (
-    <div className="consent-list">
-      <label className="consent-row consent-row--required">
-        <input type="checkbox" checked={requiredAccepted} onChange={(event) => onRequiredChange(event.target.checked)} />
-        <span><strong>ข้อตกลงที่จำเป็นสำหรับต้นแบบ</strong><small>{analysisMode === "api" ? "ฉันเข้าใจว่ารูปภาพที่เลือกจะถูกส่งไปยังบริการวิเคราะห์ภายในที่กำหนดและประมวลผลชั่วคราวด้วยโมเดลทดลอง acne_lesion ผลลัพธ์อาจไม่ครบถ้วนหรือคลาดเคลื่อน ส่วนหน้าของระบบจะไม่จัดเก็บข้อมูล ผลลัพธ์ไม่ใช่การวินิจฉัยทางการแพทย์และไม่ทดแทนคำแนะนำจากผู้เชี่ยวชาญ" : "ฉันเข้าใจว่า Wela ใช้ข้อมูลจำลองในโหมดนี้ โดยจะไม่อัปโหลดหรือวิเคราะห์รูปภาพ ผลลัพธ์เป็นเพียงการจำลอง ไม่ใช่การวินิจฉัยทางการแพทย์และไม่ทดแทนคำแนะนำจากผู้เชี่ยวชาญ"}</small></span>
-      </label>
-      <div className="consent-divider"><span>ตัวเลือกเสริม · ยังไม่เปิดใช้งาน</span></div>
-      <label className="consent-row">
-        <input type="checkbox" checked={historyAccepted} onChange={(event) => onHistoryChange(event.target.checked)} />
-        <span><strong>ประวัติการปรึกษาในอนาคต</strong><small>แสดงตัวอย่างการบันทึกคำตอบและคำแนะนำจำลองสำหรับบริการในอนาคต ขณะนี้ไม่มีการจัดเก็บข้อมูล</small></span>
-      </label>
-      <label className="consent-row">
-        <input type="checkbox" checked={lineAccepted} onChange={(event) => onLineChange(event.target.checked)} />
-        <span><strong>การติดตามผ่าน LINE ในอนาคต</strong><small>แสดงตัวอย่างการแจ้งเตือนกิจวัตรหรือการช่วยเหลือจากที่ปรึกษา ตัวเลือกนี้แยกจากการลงชื่อเข้าใช้ LINE และจะไม่มีการส่งข้อความ</small></span>
-      </label>
-    </div>
+    <>
+      <ul className="privacy-benefits" aria-label="การดูแลข้อมูลของ Wela">
+        {privacyBenefits.map((benefit) => (
+          <li className="privacy-benefit" key={benefit.title}>
+            <span className="privacy-benefit__icon" aria-hidden="true">
+              <Image src={benefit.iconSrc} alt="" width={26} height={26} />
+            </span>
+            <span className="privacy-benefit__copy">
+              <strong>{benefit.title}</strong>
+              <small>{benefit.description}</small>
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="consent-panel" role="group" aria-label="ข้อตกลงที่ต้องยอมรับ">
+        <label className="consent-checkbox">
+          <input type="checkbox" checked={imageConsentAccepted} onChange={(event) => onImageConsentChange(event.target.checked)} />
+          <span>ฉันยินยอมให้ Wela ใช้รูปภาพของฉันเพื่อวิเคราะห์สภาพผิว</span>
+        </label>
+        <label className="consent-checkbox">
+          <input type="checkbox" checked={policyAccepted} onChange={(event) => onPolicyChange(event.target.checked)} />
+          <span>
+            ฉันได้อ่านและยอมรับ <strong>นโยบายความเป็นส่วนตัว</strong> และ <strong>ข้อกำหนดการใช้งาน</strong>
+          </span>
+        </label>
+      </div>
+    </>
   );
 }

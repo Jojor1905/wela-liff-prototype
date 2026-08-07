@@ -52,8 +52,10 @@ test("photo source Back returns to scan introduction without a preparation step"
 
 test("privacy consent is first and the required acknowledgement gates scan introduction", () => {
   assert.equal(orderedFlow[0], flowSteps.consent);
-  assert.equal(canContinueFromConsent(false), false);
-  assert.equal(canContinueFromConsent(true), true);
+  assert.equal(canContinueFromConsent(false, false), false);
+  assert.equal(canContinueFromConsent(true, false), false);
+  assert.equal(canContinueFromConsent(false, true), false);
+  assert.equal(canContinueFromConsent(true, true), true);
   assert.equal(mainButtonDestinations.consent, flowSteps.scanIntroduction);
   assert.equal(previousFlowStep(flowSteps.scanIntroduction), flowSteps.consent);
 });

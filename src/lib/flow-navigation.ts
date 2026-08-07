@@ -87,6 +87,6 @@ export function resolveRestoredStep({
   return !canOpenWithoutPhoto && !hasPhoto ? flowSteps.photoSource : requestedStep;
 }
 
-export function canContinueFromConsent(requiredConsentAccepted: boolean): boolean {
-  return requiredConsentAccepted;
+export function canContinueFromConsent(imageConsentAccepted: boolean, policyAccepted: boolean): boolean {
+  return imageConsentAccepted && policyAccepted;
 }
