@@ -1,14 +1,31 @@
-import { Fragment } from "react";
-import { mockProducts } from "@/src/data/mock-products";
+import { getProducts } from "@/src/lib/product";
 
-const ProductsList = () => {
+const ProductsList = async () => {
+  const data = await getProducts("");
+
   return (
     <>
-      {mockProducts.map((element) => (
-        <Fragment key={element.id}>
-          <h1>{element.name}</h1>
-          <p>฿{element.price.toLocaleString("th-TH")}</p>
-        </Fragment>
+      {data.items.map((product) => (
+        <div key={product.id}>
+          <h2>{product.name}</h2>
+
+          <p>{product.category}</p>
+
+          <p>{product.reason}</p>
+
+          <p>
+            {product.condition_names_th.join(", ")}
+          </p>
+
+          {product.image_url && (
+            <img
+              src={product.image_url}
+              alt={product.name}
+              width={150}
+            />
+          )}
+          <hr></hr>
+        </div>
       ))}
     </>
   );
