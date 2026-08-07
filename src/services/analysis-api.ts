@@ -12,6 +12,7 @@ import {
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const UNANSWERED_QUESTIONNAIRE_VALUE = "not_provided";
 export const DEFAULT_PREDICTION_TIMEOUT_MS = 180_000;
 const DEFAULT_READINESS_TIMEOUT_MS = 60_000;
 const DEFAULT_READINESS_RETRY_DELAYS_MS = [1_500, 3_000] as const;
@@ -345,17 +346,14 @@ export function mapPredictResponse(response: PredictApiResponse, answers: UserAn
 function formDataFor(request: AnalysisRequest): FormData {
   const { answers, photo } = request;
   const gender = normaliseGender(answers.gender);
-  if (!gender || !answers.ageRange || !answers.skinType || !answers.goals.length) {
-    throw new AnalysisApiError("validation", "Please complete the consultation questions before submitting your image.");
-  }
   validateImageFile(photo.file);
   const body = new FormData();
   body.append("image", photo.file);
-  body.append("gender", gender);
-  body.append("ageRange", answers.ageRange);
-  body.append("skinType", answers.skinType);
+  body.append("gender", gender ?? UNANSWERED_QUESTIONNAIRE_VALUE);
+  body.append("ageRange", answers.ageRange ?? UNANSWERED_QUESTIONNAIRE_VALUE);
+  body.append("skinType", answers.skinType ?? UNANSWERED_QUESTIONNAIRE_VALUE);
   body.append("concerns", answers.concerns.join(","));
-  body.append("goal", answers.goals.join(","));
+  body.append("goal", answers.goals.join(",") || UNANSWERED_QUESTIONNAIRE_VALUE);
   return body;
 }
 

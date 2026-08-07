@@ -176,7 +176,7 @@ export function WelaFlow() {
   function beginAnalysis() {
     setAnalysisError(null);
     setLoadingPhase(analysisMode === "api" ? "connecting" : "finalising");
-    go(flowSteps.loading);
+    go(mainButtonDestinations.analysisLoading);
   }
   function chooseAnotherPhoto() {
     activeRequest.current?.abort();
@@ -354,7 +354,7 @@ export function WelaFlow() {
       <PhotoReview
         photo={photo}
         onPersonalised={() => { setQuestionnaireNotice(null); go(mainButtonDestinations.photoReview); }}
-        onImmediate={() => { setQuestionnaireNotice("การวิเคราะห์เฉพาะบุคคลจำเป็นต้องใช้คำตอบเพิ่มเติมเกี่ยวกับเพศ ช่วงอายุ ลักษณะผิว ความกังวล และเป้าหมายของคุณ"); go(mainButtonDestinations.photoReview); }}
+        onImmediate={beginAnalysis}
         onChooseAnother={chooseAnotherPhoto}
       />
     </MobileShell>

@@ -93,6 +93,27 @@ test("submits the expected multipart form and maps a successful API response", a
   assert.match(result.questionnaireInsights[1], /dark circles/);
 });
 
+test("immediate analysis submits the selected File exactly once without fabricated answers", async () => {
+  let calls = 0;
+  let submittedBody: FormData | undefined;
+  const fetchMock = (async (_input: string | URL | Request, init?: RequestInit) => {
+    calls += 1;
+    submittedBody = init?.body as FormData;
+    return new Response(JSON.stringify(apiResponse), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  const client = createAnalysisApiClient({ baseUrl: "http://127.0.0.1:8000", fetchImpl: fetchMock });
+
+  await client.predict({ answers: { concerns: [], goals: [] }, photo });
+
+  assert.equal(calls, 1);
+  assert.equal(submittedBody?.get("image"), photo.file);
+  assert.equal(submittedBody?.get("gender"), "not_provided");
+  assert.equal(submittedBody?.get("ageRange"), "not_provided");
+  assert.equal(submittedBody?.get("skinType"), "not_provided");
+  assert.equal(submittedBody?.get("concerns"), "");
+  assert.equal(submittedBody?.get("goal"), "not_provided");
+});
+
 test("replacing the selected File changes the multipart bytes sent to prediction", async () => {
   const submitted: File[] = [];
   const fetchMock = (async (_input: string | URL | Request, init?: RequestInit) => {

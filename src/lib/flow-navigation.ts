@@ -54,6 +54,7 @@ export const mainButtonDestinations = {
   consent: flowSteps.scanIntroduction,
   scanIntroduction: flowSteps.photoSource,
   photoReview: flowSteps.beforeQuestionnaire,
+  analysisLoading: flowSteps.loading,
   beforeQuestionnaire: flowSteps.gender,
 } as const;
 
