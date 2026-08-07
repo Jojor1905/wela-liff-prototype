@@ -194,7 +194,7 @@ export function WelaFlow() {
     setAnalysisError(null);
     activeRequestId.current = newRequestId();
     setLoadingPhase(analysisMode === "api" ? "connecting" : "finalising");
-    go(flowSteps.loading);
+    go(mainButtonDestinations.analysisLoading);
   }
   function chooseAnotherPhoto() {
     activeRequest.current?.abort();
@@ -380,7 +380,11 @@ export function WelaFlow() {
 
   if (step === "upload" || (step === "preview" && !photo)) return (
     <MobileShell className="photo-source-shell">{header}<QuestionHeading kicker="เลือกรูปภาพ" title="เลือกรูปภาพที่คุณต้องการใช้ในการวิเคราะห์" body={analysisMode === "api" ? "เบราว์เซอร์จะแสดงตัวอย่างก่อน และจะส่งไปยังบริการภายในที่กำหนดเมื่อคุณยืนยันเท่านั้น" : "โหมดจำลองจะเก็บรูปที่เลือกไว้ในหน่วยความจำของเบราว์เซอร์สำหรับเซสชันนี้"} />
-      <div className="upload-stage"><div className="upload-face" aria-hidden="true"><span /><i /><b /></div><p><Icon name="lock" />{analysisMode === "api" ? "ตรวจสอบตัวอย่างก่อนวิเคราะห์" : "แสดงตัวอย่างบนอุปกรณ์เท่านั้น"}</p></div>
+      <div className="upload-stage">
+        <div className="upload-stage__illustration" aria-hidden="true">
+          <Image className="upload-stage__image" src="/images/backgrounds/input-bg.svg" alt="" width={336} height={288} sizes="(max-width: 480px) 76vw, 15rem" />
+        </div>
+      </div>
       {(step === "preview" && !photo) || photoError ? <div className="inline-image-error" role="alert"><Icon name="image" /><div><strong>โปรดเลือกรูปภาพอีกครั้ง</strong><p>{photoError ?? missingPhotoMessage}</p></div></div> : null}
       <PhotoUploader onPhoto={acceptPhoto} />
     </MobileShell>
@@ -392,7 +396,7 @@ export function WelaFlow() {
       <PhotoReview
         photo={photo}
         onPersonalised={() => { setQuestionnaireNotice(null); go(mainButtonDestinations.photoReview); }}
-        onImmediate={() => { setQuestionnaireNotice("การวิเคราะห์เฉพาะบุคคลจำเป็นต้องใช้คำตอบเพิ่มเติมเกี่ยวกับเพศ ช่วงอายุ ลักษณะผิว ความกังวล และเป้าหมายของคุณ"); go(mainButtonDestinations.photoReview); }}
+        onImmediate={beginAnalysis}
         onChooseAnother={chooseAnotherPhoto}
       />
     </MobileShell>

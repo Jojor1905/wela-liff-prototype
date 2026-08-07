@@ -69,6 +69,10 @@ test("the reordered entry flow has predictable forward and Back destinations", (
   assert.equal(previousFlowStep(flowSteps.gender), flowSteps.beforeQuestionnaire);
 });
 
+test("photo review immediate analysis opens the existing loading step", () => {
+  assert.equal(mainButtonDestinations.analysisLoading, flowSteps.loading);
+});
+
 test("gallery and camera selections both continue to photo review with the original File", () => {
   for (const source of ["library", "camera"] as const) {
     const urls = objectUrlHarness();
