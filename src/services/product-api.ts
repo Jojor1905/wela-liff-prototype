@@ -66,16 +66,21 @@ export function createProductApiClient({ baseUrl, fetchImpl = fetch }: ProductAp
         throw new ProductApiError("empty-conditions", "ยังไม่มีข้อมูลเพียงพอสำหรับค้นหาผลิตภัณฑ์");
       }
 
+      const requestBody = {
+        condition_ids: conditionIds,
+        categories,
+        limit,
+      };
+      if (process.env.NODE_ENV === "development") {
+        console.info("[product] request body", requestBody);
+      }
+
       let response: Response;
       try {
         response = await fetchImpl(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            condition_ids: conditionIds,
-            categories,
-            limit,
-          }),
+          body: JSON.stringify(requestBody),
           cache: "no-store",
           signal,
         });
@@ -96,6 +101,10 @@ export function createProductApiClient({ baseUrl, fetchImpl = fetch }: ProductAp
       }
       if (!isProductResponse(payload)) {
         throw new ProductApiError("invalid-response", "บริการแนะนำผลิตภัณฑ์ส่งข้อมูลไม่ครบถ้วน", response.status);
+      }
+      if (process.env.NODE_ENV === "development") {
+        console.info("[product] response count", payload.count);
+        console.info("[product] returned categories", [...new Set(payload.items.map((item) => item.category))]);
       }
       return payload;
     },

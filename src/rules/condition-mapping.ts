@@ -171,10 +171,14 @@ export function deriveConditionMapping(
     return record ? [record] : [];
   });
 
-  return {
+  const result = {
     conditionIds: conditions.map((condition) => condition.conditionId),
     conditions,
     visualFindings,
     needsClarification: [...new Set(needsClarification)],
   };
+  if (process.env.NODE_ENV === "development") {
+    console.info("[rules] generated conditionIds", result.conditionIds);
+  }
+  return result;
 }

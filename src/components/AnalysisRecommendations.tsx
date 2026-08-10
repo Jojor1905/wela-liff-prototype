@@ -1,4 +1,4 @@
-import { productForCategory, requestedProductCategories, type RecommendationState } from "@/src/models/recommendation";
+import { predictionRecommendationForCategory, productForCategory, requestedProductCategories, type RecommendationState } from "@/src/models/recommendation";
 
 const categoryLabels = {
   cleanser: "CLEANSER",
@@ -15,6 +15,8 @@ export function AnalysisRecommendations({ recommendation }: { recommendation: Re
         <h2 id="analysis-recommendations-title">หมวดหมู่ผลิตภัณฑ์ที่แนะนำ</h2>
         {recommendation.conditions.length ? (
           <p>อ้างอิงจาก {recommendation.conditions.map((condition) => condition.nameTh).join(" · ")}</p>
+        ) : recommendation.prediction?.productRecommendations.length ? (
+          <p>มีคำแนะนำระดับหมวดหมู่จากผลวิเคราะห์ แต่ยังไม่มีเงื่อนไขที่เฉพาะพอสำหรับค้นหาผลิตภัณฑ์รายชิ้น</p>
         ) : (
           <p>ยังไม่มีคำตอบที่ตรงกับเงื่อนไขในแค็ตตาล็อกผลิตภัณฑ์ปัจจุบัน</p>
         )}
@@ -22,6 +24,7 @@ export function AnalysisRecommendations({ recommendation }: { recommendation: Re
       <div className="recommendation-list">
         {requestedProductCategories.map((category) => {
           const product = productForCategory(recommendation.products, category);
+          const categoryGuidance = predictionRecommendationForCategory(recommendation.prediction?.productRecommendations ?? [], category);
           return (
             <article key={category}>
               <span>{categoryLabels[category]}</span>
@@ -29,6 +32,12 @@ export function AnalysisRecommendations({ recommendation }: { recommendation: Re
                 <>
                   <h3>{product.name}</h3>
                   <p>{product.reason}</p>
+                </>
+              ) : categoryGuidance ? (
+                <>
+                  <h3>{categoryGuidance.focus}</h3>
+                  <p>{categoryGuidance.rationale}</p>
+                  <p>คำแนะนำนี้เป็นแนวทางระดับหมวดหมู่ ยังไม่มีผลิตภัณฑ์จากแค็ตตาล็อกสำหรับข้อมูลชุดนี้</p>
                 </>
               ) : (
                 <>

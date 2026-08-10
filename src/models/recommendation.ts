@@ -1,5 +1,5 @@
 import type { ProductItem } from "./product";
-import type { AnalysisResult, UploadedPhoto, UserAnswers } from "./wela";
+import type { AnalysisProductRecommendation, AnalysisResult, UploadedPhoto, UserAnswers } from "./wela";
 import type { ConditionMappingResult } from "../rules/condition-mapping";
 
 export const requestedProductCategories = ["cleanser", "serum", "moisturizer", "sunscreen"] as const;
@@ -71,6 +71,19 @@ export function productForCategory(
   category: RequestedProductCategory,
 ): ProductItem | undefined {
   return products.find((product) => product.category === category);
+}
+
+export function predictionRecommendationForCategory(
+  recommendations: readonly AnalysisProductRecommendation[],
+  category: RequestedProductCategory,
+): AnalysisProductRecommendation | undefined {
+  const apiCategories: Record<RequestedProductCategory, readonly string[]> = {
+    cleanser: ["cleanser"],
+    serum: ["serum"],
+    moisturizer: ["moisturizer", "moisturiser"],
+    sunscreen: ["sunscreen"],
+  };
+  return recommendations.find((recommendation) => apiCategories[category].includes(recommendation.category.trim().toLowerCase()));
 }
 
 export function productsForConditions(

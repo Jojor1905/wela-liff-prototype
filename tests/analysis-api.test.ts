@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AnalysisApiError, DEFAULT_PREDICTION_TIMEOUT_MS, createAnalysisApiClient, waitForAnalysisReady } from "../src/services/analysis-api";
+import { AnalysisApiError, DEFAULT_PREDICTION_TIMEOUT_MS, createAnalysisApiClient, predictQuestionnairePayload, waitForAnalysisReady } from "../src/services/analysis-api";
 import { normaliseGender, type UploadedPhoto, type UserAnswers } from "../src/models/wela";
 
 const answers: UserAnswers = {
@@ -60,6 +60,25 @@ const apiResponse = {
   ],
   disclaimer: "Experimental visual analysis for prototype demonstration only. Results may be incomplete or inaccurate and are not a medical diagnosis.",
 };
+
+test("reports the exact frontend questionnaire vocabulary sent for the Postman-equivalent UI choices", () => {
+  const payload = predictQuestionnairePayload({
+    gender: "woman",
+    ageRange: "18–29",
+    skinType: "combination",
+    concerns: ["visible-breakouts", "large-pores"],
+    goals: ["more-even-looking-tone"],
+  });
+
+  assert.deepEqual(payload, {
+    gender: "woman",
+    ageRange: "18–29",
+    skinType: "combination",
+    concerns: "visible-breakouts,large-pores",
+    goal: "more-even-looking-tone",
+  });
+  assert.equal(Object.values(payload).includes("not_provided"), false);
+});
 
 test("submits the expected multipart form and maps a successful API response", async () => {
   let submittedUrl = "";

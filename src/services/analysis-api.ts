@@ -87,6 +87,14 @@ export interface PredictApiResponse {
   disclaimer?: string;
 }
 
+export interface PredictQuestionnairePayload {
+  gender: string;
+  ageRange: string;
+  skinType: string;
+  concerns: string;
+  goal: string;
+}
+
 export class AnalysisApiError extends Error {
   constructor(
     public readonly code: AnalysisErrorCode,
@@ -366,20 +374,31 @@ export function mapPredictResponse(response: PredictApiResponse, answers: UserAn
   };
 }
 
+export function predictQuestionnairePayload(answers: UserAnswers): PredictQuestionnairePayload {
+  const gender = normaliseGender(answers.gender);
+  return {
+    gender: gender ?? UNANSWERED_QUESTIONNAIRE_VALUE,
+    ageRange: answers.ageRange ?? UNANSWERED_QUESTIONNAIRE_VALUE,
+    skinType: answers.skinType ?? UNANSWERED_QUESTIONNAIRE_VALUE,
+    concerns: answers.concerns.join(","),
+    goal: answers.goals.join(",") || UNANSWERED_QUESTIONNAIRE_VALUE,
+  };
+}
+
 function formDataFor(request: AnalysisRequest): FormData {
   const { answers, photo } = request;
-  const gender = normaliseGender(answers.gender);
+  const questionnaire = predictQuestionnairePayload(answers);
   validateImageFile(photo.file);
   const body = new FormData();
   body.append("image", photo.file);
-  body.append("gender", gender ?? UNANSWERED_QUESTIONNAIRE_VALUE);
+  body.append("gender", questionnaire.gender);
   // The running production handler currently requires these camelCase names.
   // Its generated OpenAPI document advertises snake_case, so integration tests
   // intentionally pin the observed request contract until the backend is aligned.
-  body.append("ageRange", answers.ageRange ?? UNANSWERED_QUESTIONNAIRE_VALUE);
-  body.append("skinType", answers.skinType ?? UNANSWERED_QUESTIONNAIRE_VALUE);
-  body.append("concerns", answers.concerns.join(","));
-  body.append("goal", answers.goals.join(",") || UNANSWERED_QUESTIONNAIRE_VALUE);
+  body.append("ageRange", questionnaire.ageRange);
+  body.append("skinType", questionnaire.skinType);
+  body.append("concerns", questionnaire.concerns);
+  body.append("goal", questionnaire.goal);
   return body;
 }
 
@@ -427,6 +446,9 @@ export function createAnalysisApiClient({ baseUrl, fetchImpl = fetch, timeoutMs 
         if (!audit.hasSelectedFile) throw new AnalysisApiError("missing-image", "No selected image is available for analysis.");
         if (!audit.hasValidImageFile) throw new AnalysisApiError("invalid-image", "The selected image is empty or has an unsupported format.");
         throw new AnalysisApiError("validation", "The questionnaire is incomplete or contains an invalid answer.");
+      }
+      if (process.env.NODE_ENV === "development") {
+        console.info("[predict] questionnaire payload", predictQuestionnairePayload(request.answers));
       }
       request.onPhase?.("uploading");
       let analysingTimer: ReturnType<typeof setTimeout> | undefined;

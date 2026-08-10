@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { productForCategory, productsForConditions, recommendationForNewImage, requestedProductCategories, toggleRecommendationProduct, type RecommendationState } from "../src/models/recommendation";
+import { predictionRecommendationForCategory, productForCategory, productsForConditions, recommendationForNewImage, requestedProductCategories, toggleRecommendationProduct, type RecommendationState } from "../src/models/recommendation";
 import type { ProductItem, ProductResponse } from "../src/models/product";
 import type { AnalysisResult, UserAnswers } from "../src/models/wela";
 import { ageRangeConditionMap, concernConditionMap, deriveConditionMapping, genderConditionMap, goalConditionMap, skinTypeConditionMap } from "../src/rules/condition-mapping";
@@ -169,6 +169,34 @@ test("dehydration and acne subtypes are not guessed from broad goals or model ac
   assert.ok(mapping.needsClarification.length > 0);
 });
 
+test("the verified combination acne pores case remains explicitly unmapped without fabricating a subtype", () => {
+  const mapping = deriveConditionMapping(modelResult, {
+    gender: "woman",
+    ageRange: "18–29",
+    skinType: "combination",
+    concerns: ["visible-breakouts", "large-pores"],
+    goals: ["more-even-looking-tone"],
+  });
+
+  assert.equal(mapping.visualFindings[0].id, "acne_lesion");
+  assert.equal(mapping.conditionIds.includes("comedones"), false);
+  assert.equal(mapping.conditionIds.includes("inflammatory_acne"), false);
+  assert.deepEqual(mapping.conditionIds, []);
+  assert.equal(Object.hasOwn(goalConditionMap, "clear skin"), false);
+});
+
+test("real prediction category guidance reaches the matching UI category without becoming a product", () => {
+  const recommendations = [
+    { category: "serum", focus: "lightweight oil-balancing cosmetic serum", rationale: "Questionnaire category guidance." },
+    { category: "moisturiser", focus: "lightweight non-greasy moisturiser", rationale: "Questionnaire category guidance." },
+  ];
+
+  assert.equal(predictionRecommendationForCategory(recommendations, "serum"), recommendations[0]);
+  assert.equal(predictionRecommendationForCategory(recommendations, "moisturizer"), recommendations[1]);
+  assert.equal(predictionRecommendationForCategory(recommendations, "cleanser"), undefined);
+  assert.equal("condition_ids" in recommendations[0], false);
+});
+
 test("Product API receives current condition IDs as POST JSON without a face image", async () => {
   let requestInput: string | URL | Request | undefined;
   let requestInit: RequestInit | undefined;
@@ -270,12 +298,14 @@ test("a new image clears prior conditions, products and selections", () => {
 
 test("recommendation and /products use the shared ProductResponse without a second catalog request", () => {
   const flowSource = readFileSync("src/components/WelaFlow.tsx", "utf8");
+  const recommendationSource = readFileSync("src/components/AnalysisRecommendations.tsx", "utf8");
   const productsSource = readFileSync("src/components/ProductsList.tsx", "utf8");
 
   assert.match(flowSource, /router\.push\("\/products"\)/);
   assert.match(productsSource, /useRecommendation\(\)/);
   assert.equal(productsSource.includes("fetchRecommendedProducts"), false);
   assert.equal(productsSource.includes("fetch("), false);
+  assert.match(recommendationSource, /predictionRecommendationForCategory/);
 });
 
 test("the real product flow no longer imports or renders the retired mock catalogue", () => {
