@@ -7,7 +7,7 @@ export function normaliseGender(value: unknown): Gender | undefined {
     : undefined;
 }
 export type AgeRange = "18–29" | "30–39" | "40–49" | "50+";
-export type SkinType = "balanced" | "dry" | "oily" | "combination" | "unsure";
+export type SkinType = "balanced" | "dry" | "oily" | "combination" | "sensitive";
 export type SkinConcern =
   | "visible-breakouts"
   | "sensitivity"
@@ -108,15 +108,4 @@ export interface AnalysisErrorState {
   message: string;
   canRetry: boolean;
   requestId?: string;
-}
-
-export interface ProductRecommendation {
-  id: string;
-  name: string;
-  category: string;
-  role: string;
-  usage: string;
-  price: number;
-  priority: "Essential" | "Optional";
-  tone: "ivory" | "blush" | "burgundy";
 }

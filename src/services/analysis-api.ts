@@ -287,15 +287,36 @@ function isPredictResponse(value: unknown): value is PredictApiResponse {
 }
 
 function questionnaireInsights(answers: UserAnswers): string[] {
-  const skinType = answers.skinType ? answers.skinType.replaceAll("-", " ") : "selected";
-  const declaredConcerns = answers.concerns
-    .filter((concern) => concern !== "none")
-    .map((concern) => concern.replaceAll("-", " "));
+  const skinTypeLabels: Partial<Record<NonNullable<UserAnswers["skinType"]>, string>> = {
+    balanced: "ผิวธรรมดา",
+    dry: "ผิวแห้ง",
+    oily: "ผิวมัน",
+    combination: "ผิวผสม",
+    sensitive: "ผิวแพ้ง่าย",
+  };
+  const concernLabels: Partial<Record<UserAnswers["concerns"][number], string>> = {
+    "visible-breakouts": "สิวและรอยสิว",
+    sensitivity: "การระคายเคือง",
+    "uneven-looking-tone": "สีผิวไม่สม่ำเสมอ",
+    "dark-circles": "รอยคล้ำใต้ตา",
+    "dark-spots": "จุดด่างดำ",
+    wrinkles: "ริ้วรอย",
+    "large-pores": "รูขุมขนกว้าง",
+    dullness: "ผิวหมองคล้ำ",
+    "melasma-freckles": "ฝ้าหรือกระ",
+    "dry-flaking": "ผิวแห้งลอก",
+  };
+  const declaredConcerns = answers.concerns.flatMap((concern) => {
+    const label = concernLabels[concern];
+    return label ? [label] : [];
+  });
   return [
-    `Your ${skinType} skin description and selected goals guide the product categories; they are not inferred from the image.`,
+    answers.skinType
+      ? `คุณระบุลักษณะผิวว่า ${skinTypeLabels[answers.skinType]} ข้อมูลนี้มาจากแบบสอบถามและไม่ได้อนุมานจากภาพ`
+      : "คุณยังไม่ได้ระบุลักษณะผิว จึงไม่มีการสร้างเงื่อนไขลักษณะผิวแทนคำตอบของคุณ",
     declaredConcerns.length
-      ? `You declared ${declaredConcerns.join(", ")} as questionnaire concerns. These are not model detections.`
-      : "You did not declare a specific cosmetic concern in the questionnaire.",
+      ? `ความกังวลที่คุณระบุ: ${declaredConcerns.join(" · ")} ข้อมูลเหล่านี้ไม่ใช่สิ่งที่โมเดลตรวจพบ`
+      : "คุณยังไม่ได้ระบุความกังวลด้านผิว จึงไม่มีการสร้างคำตอบแทนคุณ",
   ];
 }
 
@@ -350,8 +371,8 @@ function formDataFor(request: AnalysisRequest): FormData {
   const body = new FormData();
   body.append("image", photo.file);
   body.append("gender", gender ?? UNANSWERED_QUESTIONNAIRE_VALUE);
-  body.append("ageRange", answers.ageRange ?? UNANSWERED_QUESTIONNAIRE_VALUE);
-  body.append("skinType", answers.skinType ?? UNANSWERED_QUESTIONNAIRE_VALUE);
+  body.append("age_range", answers.ageRange ?? UNANSWERED_QUESTIONNAIRE_VALUE);
+  body.append("skin_type", answers.skinType ?? UNANSWERED_QUESTIONNAIRE_VALUE);
   body.append("concerns", answers.concerns.join(","));
   body.append("goal", answers.goals.join(",") || UNANSWERED_QUESTIONNAIRE_VALUE);
   return body;

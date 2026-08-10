@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LiffProvider } from "@/src/components/LiffProvider";
+import { RecommendationProvider } from "@/src/context/RecommendationContext";
 import { displayFont } from "./fonts";
 import "./globals.css";
 
@@ -17,7 +18,7 @@ export default function RootLayout({
   return (
     <html className={displayFont.variable} lang="th">
       <body>
-        <LiffProvider>{children}</LiffProvider>
+        <LiffProvider><RecommendationProvider>{children}</RecommendationProvider></LiffProvider>
       </body>
     </html>
   );

@@ -12,8 +12,12 @@
   "include": [
     "tests/*.test.ts",
     "src/lib/photo-flow.ts",
+    "src/models/product.ts",
+    "src/models/recommendation.ts",
     "src/models/wela.ts",
+    "src/rules/condition-mapping.ts",
     "src/services/analysis-config.ts",
-    "src/services/analysis-api.ts"
+    "src/services/analysis-api.ts",
+    "src/services/product-api.ts"
   ]
 }

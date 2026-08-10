@@ -74,8 +74,8 @@ test("submits the expected multipart form and maps a successful API response", a
   const result = await client.predict({ answers, photo });
 
   assert.equal(submittedBody?.get("gender"), "woman");
-  assert.equal(submittedBody?.get("ageRange"), "30–39");
-  assert.equal(submittedBody?.get("skinType"), "combination");
+  assert.equal(submittedBody?.get("age_range"), "30–39");
+  assert.equal(submittedBody?.get("skin_type"), "combination");
   assert.equal(submittedBody?.get("concerns"), "visible-breakouts,dark-circles");
   assert.equal(submittedBody?.get("goal"), "calmer-looking-skin");
   assert.equal(submittedBody?.get("image"), photo.file);
@@ -90,7 +90,9 @@ test("submits the expected multipart form and maps a successful API response", a
   assert.equal(result.severityLevel, "Moderate");
   assert.equal(result.skinScore, 78);
   assert.equal(result.productRecommendations[0].focus, "gentle lightweight cleanser");
-  assert.match(result.questionnaireInsights[1], /dark circles/);
+  assert.match(result.questionnaireInsights[0], /ผิวผสม/);
+  assert.match(result.questionnaireInsights[1], /รอยคล้ำใต้ตา/);
+  assert.equal(result.questionnaireInsights.some((insight) => insight.includes("not_provided")), false);
 });
 
 test("immediate analysis submits the selected File exactly once without fabricated answers", async () => {
@@ -108,10 +110,20 @@ test("immediate analysis submits the selected File exactly once without fabricat
   assert.equal(calls, 1);
   assert.equal(submittedBody?.get("image"), photo.file);
   assert.equal(submittedBody?.get("gender"), "not_provided");
-  assert.equal(submittedBody?.get("ageRange"), "not_provided");
-  assert.equal(submittedBody?.get("skinType"), "not_provided");
+  assert.equal(submittedBody?.get("age_range"), "not_provided");
+  assert.equal(submittedBody?.get("skin_type"), "not_provided");
   assert.equal(submittedBody?.get("concerns"), "");
   assert.equal(submittedBody?.get("goal"), "not_provided");
+});
+
+test("missing questionnaire answers are represented as missing state without rendering protocol sentinels", async () => {
+  const fetchMock = (async () => new Response(JSON.stringify(apiResponse), { status: 200 })) as typeof fetch;
+  const client = createAnalysisApiClient({ baseUrl: "http://127.0.0.1:8000", fetchImpl: fetchMock });
+
+  const result = await client.predict({ answers: { concerns: [], goals: [] }, photo });
+
+  assert.match(result.questionnaireInsights[0], /ยังไม่ได้ระบุลักษณะผิว/);
+  assert.equal(result.questionnaireInsights.some((insight) => insight.includes("not_provided")), false);
 });
 
 test("replacing the selected File changes the multipart bytes sent to prediction", async () => {
