@@ -462,7 +462,12 @@ export function createAnalysisApiClient({ baseUrl, fetchImpl = fetch, timeoutMs 
           throw new AnalysisApiError("timeout", "The analysis service took too long to respond. Please try again.", undefined, requestId);
         }
         if (error instanceof AnalysisApiError) throw error;
-        throw new AnalysisApiError("network", "Wela could not reach the analysis service. Check your connection, then try again.", undefined, requestId);
+        throw new AnalysisApiError(
+          "prediction-failed",
+          "The connection ended while the image was being submitted or the prediction result was being returned.",
+          undefined,
+          requestId,
+        );
       } finally {
         if (analysingTimer) clearTimeout(analysingTimer);
       }

@@ -94,6 +94,7 @@ export type AnalysisErrorCode =
   | "missing-image"
   | "invalid-image"
   | "network"
+  | "prediction-failed"
   | "waking"
   | "model-not-ready"
   | "timeout"

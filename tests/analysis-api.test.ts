@@ -62,9 +62,11 @@ const apiResponse = {
 };
 
 test("submits the expected multipart form and maps a successful API response", async () => {
+  let submittedUrl = "";
   let submittedBody: FormData | undefined;
   let submittedInit: RequestInit | undefined;
-  const fetchMock = (async (_input: string | URL | Request, init?: RequestInit) => {
+  const fetchMock = (async (input: string | URL | Request, init?: RequestInit) => {
+    submittedUrl = input.toString();
     submittedInit = init;
     submittedBody = init?.body as FormData;
     return new Response(JSON.stringify(apiResponse), { status: 200, headers: { "content-type": "application/json" } });
@@ -73,6 +75,7 @@ test("submits the expected multipart form and maps a successful API response", a
 
   const result = await client.predict({ answers, photo });
 
+  assert.equal(submittedUrl, "http://127.0.0.1:8000/predict");
   assert.equal(submittedBody?.get("gender"), "woman");
   assert.equal(submittedBody?.get("ageRange"), "30–39");
   assert.equal(submittedBody?.get("skinType"), "combination");
@@ -234,14 +237,40 @@ test("surfaces a real API error without returning mock analysis", async () => {
   );
 });
 
-test("a real-mode network failure remains an error instead of becoming a mock success", async () => {
-  const fetchMock = (async () => { throw new TypeError("connection refused"); }) as typeof fetch;
+test("a prediction connection failure is distinct and never becomes a mock success", async () => {
+  let calls = 0;
+  const fetchMock = (async () => {
+    calls += 1;
+    throw new TypeError("connection refused");
+  }) as typeof fetch;
   const client = createAnalysisApiClient({ baseUrl: "http://127.0.0.1:8000", fetchImpl: fetchMock });
 
   await assert.rejects(
     client.predict({ answers, photo }),
-    (error: unknown) => error instanceof AnalysisApiError && error.code === "network",
+    (error: unknown) => error instanceof AnalysisApiError && error.code === "prediction-failed",
   );
+  assert.equal(calls, 1);
+});
+
+test("a manual retry starts one new prediction only after the failed request has settled", async () => {
+  let calls = 0;
+  const fetchMock = (async () => {
+    calls += 1;
+    if (calls === 1) throw new TypeError("render gateway reset");
+    return new Response(JSON.stringify(apiResponse), { status: 200 });
+  }) as typeof fetch;
+  const client = createAnalysisApiClient({ baseUrl: "https://wela-skin-ai-api.onrender.com/", fetchImpl: fetchMock });
+
+  await assert.rejects(
+    client.predict({ answers, photo, requestId: "first-attempt" }),
+    (error: unknown) => error instanceof AnalysisApiError && error.code === "prediction-failed",
+  );
+  assert.equal(calls, 1);
+
+  const result = await client.predict({ answers, photo, requestId: "retry-attempt" });
+
+  assert.equal(calls, 2);
+  assert.equal(result.source, "api");
 });
 
 test("the production prediction timeout is long enough for measured Render inference", () => {
