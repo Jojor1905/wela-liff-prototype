@@ -4,7 +4,7 @@ import test from "node:test";
 import { productForCategory, productsForConditions, recommendationForNewImage, requestedProductCategories, toggleRecommendationProduct, type RecommendationState } from "../src/models/recommendation";
 import type { ProductItem, ProductResponse } from "../src/models/product";
 import type { AnalysisResult, UserAnswers } from "../src/models/wela";
-import { deriveConditionMapping } from "../src/rules/condition-mapping";
+import { ageRangeConditionMap, concernConditionMap, deriveConditionMapping, genderConditionMap, goalConditionMap, skinTypeConditionMap } from "../src/rules/condition-mapping";
 import { createProductApiClient, ProductApiError } from "../src/services/product-api";
 
 const modelResult: AnalysisResult = {
@@ -47,6 +47,82 @@ const productResponse: ProductResponse = {
   items: [serum],
   disclaimer: "ต้นแบบเชิงวิชาการ",
 };
+
+test("every current questionnaire option has an explicit condition coverage decision", () => {
+  assert.deepEqual(genderConditionMap, {
+    woman: null,
+    man: null,
+    "non-binary": null,
+  });
+  assert.deepEqual(ageRangeConditionMap, {
+    "18–29": null,
+    "30–39": null,
+    "40–49": null,
+    "50+": null,
+  });
+  assert.deepEqual(skinTypeConditionMap, {
+    balanced: null,
+    dry: "dry_skin",
+    oily: "oily_skin",
+    combination: null,
+    sensitive: "sensitive_skin",
+  });
+  assert.deepEqual(
+    Object.fromEntries([
+      "visible-breakouts",
+      "dark-spots",
+      "wrinkles",
+      "large-pores",
+      "dullness",
+      "melasma-freckles",
+      "uneven-looking-tone",
+      "dry-flaking",
+    ].map((value) => [value, concernConditionMap[value as keyof typeof concernConditionMap]])),
+    {
+      "visible-breakouts": null,
+      "dark-spots": "pigmentation_dark_spots",
+      wrinkles: "fine_lines_wrinkles",
+      "large-pores": null,
+      dullness: "dull_skin",
+      "melasma-freckles": "pigmentation_dark_spots",
+      "uneven-looking-tone": null,
+      "dry-flaking": "dry_skin",
+    },
+  );
+  assert.deepEqual(goalConditionMap, {
+    "calmer-looking-skin": null,
+    "comfortable-hydration": null,
+    "more-even-looking-tone": null,
+    "simpler-routine": null,
+  });
+});
+
+test("every current skin-type and concern option derives only its audited condition", () => {
+  for (const [skinType, expected] of Object.entries(skinTypeConditionMap)) {
+    const result = deriveConditionMapping(null, {
+      skinType: skinType as UserAnswers["skinType"],
+      concerns: [],
+      goals: [],
+    });
+    assert.deepEqual(result.conditionIds, expected ? [expected] : []);
+  }
+
+  const currentConcernValues = [
+    "visible-breakouts",
+    "dark-spots",
+    "wrinkles",
+    "large-pores",
+    "dullness",
+    "melasma-freckles",
+    "uneven-looking-tone",
+    "dry-flaking",
+  ] as const;
+  for (const concern of currentConcernValues) {
+    const result = deriveConditionMapping(null, { concerns: [concern], goals: [] });
+    const expected = concernConditionMap[concern];
+    assert.deepEqual(result.conditionIds, expected ? [expected] : []);
+  }
+});
 
 test("questionnaire values map deterministically while model evidence stays separate", () => {
   const questionnaire: UserAnswers = {

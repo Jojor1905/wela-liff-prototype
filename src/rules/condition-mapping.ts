@@ -1,4 +1,4 @@
-import type { AnalysisResult, SkinConcern, SkinType, UserAnswers } from "../models/wela";
+import type { AgeRange, AnalysisResult, Gender, SkinConcern, SkinType, SkincareGoal, UserAnswers } from "../models/wela";
 
 export const supportedConditionIds = [
   "sensitive_skin",
@@ -53,20 +53,47 @@ const conditionNamesTh: Record<ConditionId, string> = {
 };
 
 // Product-design mapping: only exact stored questionnaire values are mapped.
-// A missing entry means the current question is not specific enough for that condition.
-export const skinTypeConditionMap: Readonly<Partial<Record<SkinType, ConditionId>>> = {
+// A null entry records that the current answer is not specific enough for a catalog condition.
+export const genderConditionMap: Readonly<Record<Gender, ConditionId | null>> = {
+  woman: null,
+  man: null,
+  "non-binary": null,
+};
+
+export const ageRangeConditionMap: Readonly<Record<AgeRange, ConditionId | null>> = {
+  "18–29": null,
+  "30–39": null,
+  "40–49": null,
+  "50+": null,
+};
+
+export const skinTypeConditionMap: Readonly<Record<SkinType, ConditionId | null>> = {
+  balanced: null,
   dry: "dry_skin",
   oily: "oily_skin",
+  combination: null,
   sensitive: "sensitive_skin",
 };
 
-export const concernConditionMap: Readonly<Partial<Record<SkinConcern, ConditionId>>> = {
+export const concernConditionMap: Readonly<Record<SkinConcern, ConditionId | null>> = {
+  "visible-breakouts": null,
   sensitivity: "sensitive_skin",
+  "uneven-looking-tone": null,
+  "dark-circles": null,
+  none: null,
   "dark-spots": "pigmentation_dark_spots",
-  "melasma-freckles": "pigmentation_dark_spots",
-  dullness: "dull_skin",
   wrinkles: "fine_lines_wrinkles",
+  "large-pores": null,
+  dullness: "dull_skin",
+  "melasma-freckles": "pigmentation_dark_spots",
   "dry-flaking": "dry_skin",
+};
+
+export const goalConditionMap: Readonly<Record<SkincareGoal, ConditionId | null>> = {
+  "calmer-looking-skin": null,
+  "comfortable-hydration": null,
+  "more-even-looking-tone": null,
+  "simpler-routine": null,
 };
 
 const skinTypeEvidence: Partial<Record<SkinType, string>> = {
