@@ -89,6 +89,7 @@ export function WelaFlow() {
   const [imageConsentAccepted, setImageConsentAccepted] = useState(Boolean(result));
   const [policyAccepted, setPolicyAccepted] = useState(Boolean(result));
   const activeRequest = useRef<AbortController | null>(null);
+  const questionnaireRequiredRef = useRef(true);
   const photoRef = useRef<UploadedPhoto | null>(photo);
   const requiredConsentRef = useRef(Boolean(result));
 
@@ -148,7 +149,7 @@ export function WelaFlow() {
     if (step !== "loading") return;
     const controller = new AbortController();
     activeRequest.current = controller;
-    runAnalysis({ answers, photo, signal: controller.signal, onPhase: setLoadingPhase })
+    runAnalysis({ answers, photo, questionnaireRequired: questionnaireRequiredRef.current, signal: controller.signal, onPhase: setLoadingPhase })
       .then(async (analysis) => {
         if (controller.signal.aborted) return;
         const mapping = deriveConditionMapping(analysis, answers);
@@ -214,7 +215,8 @@ export function WelaFlow() {
     setStep(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
-  function beginAnalysis() {
+  function beginAnalysis(questionnaireRequired?: boolean) {
+    if (questionnaireRequired !== undefined) questionnaireRequiredRef.current = questionnaireRequired;
     setAnalysisError(null);
     setRecommendation((current) => recommendationForNewImage({ questionnaire: current.questionnaire, photo: current.photo }));
     setLoadingPhase(analysisMode === "api" ? "connecting" : "finalising");
@@ -242,6 +244,7 @@ export function WelaFlow() {
   }
   function reset() {
     activeRequest.current?.abort();
+    questionnaireRequiredRef.current = true;
     writeHistoryStep(flowSteps.consent, "replace");
     requiredConsentRef.current = false;
     setStep(flowSteps.consent); setRecommendation(recommendationForNewImage({ questionnaire: initialAnswers })); setAnalysisError(null); setPhotoError(null); setQuestionnaireNotice(null); setImageConsentAccepted(false); setPolicyAccepted(false);
@@ -377,7 +380,7 @@ export function WelaFlow() {
       <div className="goal-grid">{[
         ["calmer-looking-skin", "ผิวดูสงบและสบายขึ้น", "leaf"], ["comfortable-hydration", "เติมความชุ่มชื้นอย่างสบายผิว", "sparkle"], ["more-even-looking-tone", "ผิวดูสม่ำเสมอยิ่งขึ้น", "sun"], ["simpler-routine", "กิจวัตรที่เรียบง่ายขึ้น", "moon"],
       ].map(([value, label, icon]) => <button key={value} className={`goal-card ${answers.goals.includes(value as UserAnswers["goals"][number]) ? "is-selected" : ""}`} type="button" aria-pressed={answers.goals.includes(value as UserAnswers["goals"][number])} onClick={() => toggleMulti("goals", value as UserAnswers["goals"][number])}><Icon name={icon as "leaf"} /><span>{label}</span></button>)}</div>
-      <BottomActionBar label="ถัดไป" onClick={beginAnalysis} disabled={!answers.goals.length} />
+      <BottomActionBar label="ถัดไป" onClick={() => beginAnalysis(true)} disabled={!answers.goals.length} />
     </MobileShell>
   );
 
@@ -423,7 +426,7 @@ export function WelaFlow() {
       <PhotoReview
         photo={photo}
         onPersonalised={() => { setQuestionnaireNotice(null); go(mainButtonDestinations.photoReview); }}
-        onImmediate={beginAnalysis}
+        onImmediate={() => beginAnalysis(false)}
         onChooseAnother={chooseAnotherPhoto}
       />
     </MobileShell>
@@ -448,6 +451,7 @@ function QuestionHeading({ kicker, title, body }: { kicker: string; title: strin
 function analysisErrorState(error: unknown): AnalysisErrorState {
   if (error instanceof AnalysisApiError) {
     const titles: Record<AnalysisApiError["code"], string> = {
+      "missing-image": "ไม่พบรูปภาพสำหรับการวิเคราะห์",
       "invalid-image": "ไม่สามารถใช้รูปภาพนี้ได้",
       network: "ไม่สามารถเชื่อมต่อบริการภายในได้",
       waking: "บริการวิเคราะห์ยังตื่นไม่เสร็จ",
@@ -460,12 +464,13 @@ function analysisErrorState(error: unknown): AnalysisErrorState {
       cancelled: "ยกเลิกการวิเคราะห์แล้ว",
     };
     const messages: Record<AnalysisApiError["code"], string> = {
+      "missing-image": "โปรดถ่ายรูปหรือเลือกจากคลังรูปภาพก่อนเริ่มการวิเคราะห์",
       "invalid-image": "โปรดเลือกรูปภาพ JPEG, PNG หรือ WEBP ที่ชัดเจนและมีขนาดไม่เกิน 10 MB",
       network: "โปรดตรวจสอบว่าบริการภายในกำลังทำงาน แล้วลองอีกครั้ง",
       waking: "บริการคลาวด์กำลังเริ่มทำงาน โปรดลองอีกครั้งในอีกสักครู่",
       "model-not-ready": "บริการเชื่อมต่อได้แล้ว แต่โมเดลยังเตรียมไม่เสร็จ โปรดลองอีกครั้ง",
       timeout: "โปรดลองวิเคราะห์อีกครั้งในอีกสักครู่",
-      validation: "โปรดตรวจสอบคำตอบและรูปภาพก่อนลองอีกครั้ง",
+      validation: "โปรดตรวจสอบคำตอบในแบบประเมินก่อนลองอีกครั้ง",
       server: "เกิดปัญหาระหว่างการประมวลผล โปรดลองอีกครั้ง",
       "invalid-response": "บริการส่งผลลัพธ์ที่ไม่สามารถแสดงได้ โปรดลองอีกครั้ง",
       configuration: "โปรดตรวจสอบการตั้งค่าบริการก่อนเริ่มการวิเคราะห์",

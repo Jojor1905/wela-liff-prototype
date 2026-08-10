@@ -11,6 +11,7 @@
   },
   "include": [
     "tests/*.test.ts",
+    "src/lib/analysis-validation.ts",
     "src/lib/photo-flow.ts",
     "src/models/product.ts",
     "src/models/recommendation.ts",

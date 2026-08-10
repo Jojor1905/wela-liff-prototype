@@ -9,6 +9,7 @@ import {
   type UploadedPhoto,
   type UserAnswers,
 } from "../models/wela";
+import { analysisInputIsValid, auditAnalysisInput } from "../lib/analysis-validation";
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -20,6 +21,7 @@ const DEFAULT_READINESS_RETRY_DELAYS_MS = [1_500, 3_000] as const;
 export interface AnalysisRequest {
   photo: UploadedPhoto;
   answers: UserAnswers;
+  questionnaireRequired?: boolean;
   signal?: AbortSignal;
   requestId?: string;
   onPhase?: (phase: AnalysisPhase) => void;
@@ -371,8 +373,11 @@ function formDataFor(request: AnalysisRequest): FormData {
   const body = new FormData();
   body.append("image", photo.file);
   body.append("gender", gender ?? UNANSWERED_QUESTIONNAIRE_VALUE);
-  body.append("age_range", answers.ageRange ?? UNANSWERED_QUESTIONNAIRE_VALUE);
-  body.append("skin_type", answers.skinType ?? UNANSWERED_QUESTIONNAIRE_VALUE);
+  // The running production handler currently requires these camelCase names.
+  // Its generated OpenAPI document advertises snake_case, so integration tests
+  // intentionally pin the observed request contract until the backend is aligned.
+  body.append("ageRange", answers.ageRange ?? UNANSWERED_QUESTIONNAIRE_VALUE);
+  body.append("skinType", answers.skinType ?? UNANSWERED_QUESTIONNAIRE_VALUE);
   body.append("concerns", answers.concerns.join(","));
   body.append("goal", answers.goals.join(",") || UNANSWERED_QUESTIONNAIRE_VALUE);
   return body;
@@ -392,12 +397,37 @@ function messageForStatus(status: number, requestId: string): AnalysisApiError {
   return new AnalysisApiError("server", "The analysis service could not complete the prediction. Please try again.", status, requestId);
 }
 
+async function messageForResponse(response: Response, requestId: string): Promise<AnalysisApiError> {
+  if (response.status !== 422) return messageForStatus(response.status, requestId);
+  try {
+    const payload = await response.json() as { detail?: Array<{ loc?: unknown[] }> };
+    const missingFields = payload.detail?.flatMap((item) => {
+      const field = item.loc?.at(-1);
+      return typeof field === "string" ? [field] : [];
+    }) ?? [];
+    if (missingFields.includes("image")) {
+      return new AnalysisApiError("missing-image", "The analysis request did not contain an image.", 422, requestId);
+    }
+  } catch {
+    // Keep the stable validation classification when FastAPI sends an unreadable error body.
+  }
+  return messageForStatus(response.status, requestId);
+}
+
 export function createAnalysisApiClient({ baseUrl, fetchImpl = fetch, timeoutMs = DEFAULT_PREDICTION_TIMEOUT_MS }: AnalysisApiClientOptions) {
   const endpoint = endpointFor(baseUrl, "predict");
 
   return {
     async predict(request: AnalysisRequest): Promise<AnalysisResult> {
       const requestId = request.requestId ?? requestReference();
+      const audit = auditAnalysisInput(request.answers, request.photo, {
+        questionnaireRequired: request.questionnaireRequired ?? true,
+      });
+      if (!analysisInputIsValid(audit)) {
+        if (!audit.hasSelectedFile) throw new AnalysisApiError("missing-image", "No selected image is available for analysis.");
+        if (!audit.hasValidImageFile) throw new AnalysisApiError("invalid-image", "The selected image is empty or has an unsupported format.");
+        throw new AnalysisApiError("validation", "The questionnaire is incomplete or contains an invalid answer.");
+      }
       request.onPhase?.("uploading");
       let analysingTimer: ReturnType<typeof setTimeout> | undefined;
       try {
@@ -415,7 +445,7 @@ export function createAnalysisApiClient({ baseUrl, fetchImpl = fetch, timeoutMs 
           signal: request.signal,
         });
         const responseRequestId = response.headers.get("x-request-id") ?? requestId;
-        if (!response.ok) throw messageForStatus(response.status, responseRequestId);
+        if (!response.ok) throw await messageForResponse(response, responseRequestId);
         request.onPhase?.("finalising");
         let payload: unknown;
         try {

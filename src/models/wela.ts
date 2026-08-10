@@ -91,6 +91,7 @@ export type AnalysisPhase =
   | "finalising";
 
 export type AnalysisErrorCode =
+  | "missing-image"
   | "invalid-image"
   | "network"
   | "waking"
